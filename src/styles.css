@@ -1,0 +1,178 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "DM Serif Display", "Instrument Serif", ui-serif, Georgia, serif;
+  --font-serif-italic: "Instrument Serif", ui-serif, Georgia, serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Crescendo palette — deep teal, cream, coral, gold */
+  --color-teal-deep: var(--teal-deep);
+  --color-teal-primary: var(--teal-primary);
+  --color-teal-soft: var(--teal-soft);
+  --color-cream: var(--cream);
+  --color-cream-warm: var(--cream-warm);
+  --color-coral: var(--coral);
+  --color-gold: var(--gold);
+  --color-ink: var(--ink);
+
+  /* Legacy brand aliases — map to new palette so old classes keep working */
+  --color-brand-deep: var(--teal-deep);
+  --color-brand-primary: var(--teal-primary);
+  --color-brand-accent: var(--coral);
+  --color-brand-surface: var(--cream);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  /* Crescendo — teal / cream / coral / gold */
+  --teal-deep: oklch(0.28 0.045 200);        /* sidebar bg — deep teal */
+  --teal-primary: oklch(0.5 0.08 195);        /* CTA teal */
+  --teal-soft: oklch(0.85 0.045 190);         /* soft teal wash */
+  --cream: oklch(0.98 0.015 85);              /* main bg — warm cream */
+  --cream-warm: oklch(0.965 0.022 78);        /* card wash */
+  --coral: oklch(0.7 0.15 38);                /* coral accent */
+  --gold: oklch(0.8 0.12 82);                 /* gold accent */
+  --ink: oklch(0.24 0.03 240);                /* body ink */
+
+  --background: oklch(0.98 0.015 85);
+  --foreground: oklch(0.24 0.03 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.03 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.03 240);
+  --primary: oklch(0.5 0.08 195);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.02 85);
+  --secondary-foreground: oklch(0.24 0.03 240);
+  --muted: oklch(0.95 0.015 85);
+  --muted-foreground: oklch(0.5 0.02 240);
+  --accent: oklch(0.94 0.03 195);
+  --accent-foreground: oklch(0.28 0.045 200);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.02 85);
+  --input: oklch(0.9 0.02 85);
+  --ring: oklch(0.5 0.08 195);
+
+  --sidebar: oklch(0.28 0.045 200);
+  --sidebar-foreground: oklch(0.9 0.02 190);
+  --sidebar-primary: oklch(0.5 0.08 195);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.34 0.05 200);
+  --sidebar-accent-foreground: oklch(0.98 0.015 85);
+  --sidebar-border: oklch(0.34 0.05 200);
+  --sidebar-ring: oklch(0.5 0.08 195);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-serif-italic {
+    font-family: var(--font-serif-italic);
+    font-style: italic;
+  }
+}
+
+/* Watercolor wash utility — for cream backdrop with a subtle teal fade */
+@utility cream-canvas {
+  background:
+    radial-gradient(60% 40% at 100% 0%, color-mix(in oklab, var(--teal-soft) 25%, transparent), transparent 70%),
+    radial-gradient(50% 40% at 0% 100%, color-mix(in oklab, var(--gold) 12%, transparent), transparent 70%),
+    var(--cream);
+}
+
+@utility teal-canvas {
+  background:
+    radial-gradient(70% 50% at 100% 0%, color-mix(in oklab, var(--teal-primary) 22%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 0% 100%, color-mix(in oklab, var(--teal-primary) 15%, transparent), transparent 70%),
+    var(--teal-deep);
+}
+
+/* ============ Print / Export styles ============ */
+@media print {
+  @page {
+    size: Letter;
+    margin: 0.75in;
+  }
+  html, body {
+    background: white !important;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+  }
+  .print-page {
+    background: white !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+  .avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  h1, h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+}
