@@ -2039,10 +2039,11 @@ export type Database = {
       theory_of_change: {
         Row: {
           activities: Json
-          assumptions: string | null
+          assumptions: Json
           created_at: string
+          external_factors: Json
           id: string
-          impact: string | null
+          impact: Json
           inputs: Json
           organization_id: string
           outcomes: Json
@@ -2053,10 +2054,11 @@ export type Database = {
         }
         Insert: {
           activities?: Json
-          assumptions?: string | null
+          assumptions?: Json
           created_at?: string
+          external_factors?: Json
           id?: string
-          impact?: string | null
+          impact?: Json
           inputs?: Json
           organization_id: string
           outcomes?: Json
@@ -2067,10 +2069,11 @@ export type Database = {
         }
         Update: {
           activities?: Json
-          assumptions?: string | null
+          assumptions?: Json
           created_at?: string
+          external_factors?: Json
           id?: string
-          impact?: string | null
+          impact?: Json
           inputs?: Json
           organization_id?: string
           outcomes?: Json
@@ -2092,6 +2095,208 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: true
             referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      swot_items: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          plan_id: string
+          quadrant: string
+          sort_order: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          plan_id: string
+          quadrant: string
+          sort_order?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          plan_id?: string
+          quadrant?: string
+          sort_order?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "swot_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "swot_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          budget: number | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          participants: number | null
+          pillar_id: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          budget?: number | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          participants?: number | null
+          pillar_id?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          budget?: number | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          participants?: number | null
+          pillar_id?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programs_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_pillars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_items: {
+        Row: {
+          cadence: string
+          category: string
+          created_at: string
+          due_date: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          owner: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cadence?: string
+          category: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          owner?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          cadence?: string
+          category?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          owner?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoints: {
+        Row: {
+          audience: string
+          channel: string
+          created_at: string
+          id: string
+          note: string | null
+          organization_id: string
+          owner: string | null
+          scheduled_date: string | null
+          segment: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience: string
+          channel: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id: string
+          owner?: string | null
+          scheduled_date?: string | null
+          segment?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          organization_id?: string
+          owner?: string | null
+          scheduled_date?: string | null
+          segment?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoints_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -2124,8 +2329,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_org_admin: { Args: { _org: string; _user: string }; Returns: boolean }
       is_org_editor: { Args: { _org: string; _user: string }; Returns: boolean }
       is_org_member: { Args: { _org: string; _user: string }; Returns: boolean }
+      is_org_plan_contributor: {
+        Args: { _org: string; _user: string }
+        Returns: boolean
+      }
       is_platform_admin: { Args: never; Returns: boolean }
       shares_org_with: { Args: { _user: string }; Returns: boolean }
     }
