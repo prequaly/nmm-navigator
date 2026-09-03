@@ -5,7 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useServerFn } from "@tanstack/react-start";
 import { draftNarrative } from "@/lib/ai/draft.functions";
-import { PLAN_SECTIONS, IMPACT_LENSES, detectImpactCoverage } from "@/lib/plan/sections";
+import {
+  PLAN_SECTIONS,
+  IMPACT_LENSES,
+  detectImpactCoverage,
+  FOURRS_LENSES,
+  detectFourRsCoverage,
+} from "@/lib/plan/sections";
 import { toast } from "sonner";
 import { Sparkles, Save, Loader2, FileText, Check } from "lucide-react";
 
@@ -118,57 +124,126 @@ function PlanNarrativePage() {
           const totalCovered = sectionCoverage.reduce((a, b) => a + b.covered, 0);
           const totalPct = Math.round((totalCovered / totalLenses) * 100);
           const sectionsComplete = sectionCoverage.filter((c) => c.complete).length;
+
+          const fourRsCoverage = PLAN_SECTIONS.map((s) => {
+            const cov = detectFourRsCoverage(drafts[s.key] ?? "");
+            const n = FOURRS_LENSES.filter((l) => cov[l.key]).length;
+            return { section: s, covered: n, complete: n === FOURRS_LENSES.length };
+          });
+          const totalFourRs = PLAN_SECTIONS.length * FOURRS_LENSES.length;
+          const totalFourRsCovered = fourRsCoverage.reduce((a, b) => a + b.covered, 0);
+          const totalFourRsPct = Math.round((totalFourRsCovered / totalFourRs) * 100);
+          const fourRsSectionsComplete = fourRsCoverage.filter((c) => c.complete).length;
+
           return (
             <div className="space-y-6">
-              <SectionCard
-                title="Plan IMPACT coverage"
-                subtitle="Every section should address all six IMPACT lenses. Jump to any section to fill in what's missing."
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    Overall progress
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <SectionCard
+                  title="Plan IMPACT coverage"
+                  subtitle="Every section should address all six IMPACT lenses. Jump to any section to fill in what's missing."
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Overall progress
+                    </div>
+                    <div className="text-xs font-medium text-slate-700">
+                      {totalCovered}/{totalLenses} lenses · {sectionsComplete}/
+                      {PLAN_SECTIONS.length} sections complete · {totalPct}%
+                    </div>
                   </div>
-                  <div className="text-xs font-medium text-slate-700">
-                    {totalCovered}/{totalLenses} lenses · {sectionsComplete}/{PLAN_SECTIONS.length} sections complete · {totalPct}%
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 mb-4">
+                    <div
+                      className={`h-full transition-all ${
+                        totalPct === 100
+                          ? "bg-emerald-500"
+                          : totalPct >= 50
+                            ? "bg-brand-primary"
+                            : "bg-amber-500"
+                      }`}
+                      style={{ width: `${totalPct}%` }}
+                    />
                   </div>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 mb-4">
-                  <div
-                    className={`h-full transition-all ${
-                      totalPct === 100
-                        ? "bg-emerald-500"
-                        : totalPct >= 50
-                          ? "bg-brand-primary"
-                          : "bg-amber-500"
-                    }`}
-                    style={{ width: `${totalPct}%` }}
-                  />
-                </div>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                  {sectionCoverage.map(({ section, covered, complete }) => (
-                    <li key={section.key}>
-                      <a
-                        href={`#section-${section.key}`}
-                        className={`flex items-center justify-between gap-2 text-xs rounded px-2 py-1.5 border transition-colors ${
-                          complete
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            : covered > 0
-                              ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="truncate">
-                          <span className="font-mono mr-1.5 text-slate-400">{section.numeral}.</span>
-                          {section.title}
-                        </span>
-                        <span className="font-medium tabular-nums shrink-0">
-                          {covered}/{IMPACT_LENSES.length}
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </SectionCard>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {sectionCoverage.map(({ section, covered, complete }) => (
+                      <li key={section.key}>
+                        <a
+                          href={`#section-${section.key}`}
+                          className={`flex items-center justify-between gap-2 text-xs rounded px-2 py-1.5 border transition-colors ${
+                            complete
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : covered > 0
+                                ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="truncate">
+                            <span className="font-mono mr-1.5 text-slate-400">
+                              {section.numeral}.
+                            </span>
+                            {section.title}
+                          </span>
+                          <span className="font-medium tabular-nums shrink-0">
+                            {covered}/{IMPACT_LENSES.length}
+                          </span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+
+                <SectionCard
+                  title="Plan 4Rs coverage"
+                  subtitle="Relationships · Resources · Results · Reputation — the same sustainability lenses, tracked in parity with IMPACT."
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Overall progress
+                    </div>
+                    <div className="text-xs font-medium text-slate-700">
+                      {totalFourRsCovered}/{totalFourRs} lenses · {fourRsSectionsComplete}/
+                      {PLAN_SECTIONS.length} sections complete · {totalFourRsPct}%
+                    </div>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 mb-4">
+                    <div
+                      className={`h-full transition-all ${
+                        totalFourRsPct === 100
+                          ? "bg-emerald-500"
+                          : totalFourRsPct >= 50
+                            ? "bg-violet-500"
+                            : "bg-amber-500"
+                      }`}
+                      style={{ width: `${totalFourRsPct}%` }}
+                    />
+                  </div>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {fourRsCoverage.map(({ section, covered, complete }) => (
+                      <li key={section.key}>
+                        <a
+                          href={`#section-${section.key}`}
+                          className={`flex items-center justify-between gap-2 text-xs rounded px-2 py-1.5 border transition-colors ${
+                            complete
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : covered > 0
+                                ? "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="truncate">
+                            <span className="font-mono mr-1.5 text-slate-400">
+                              {section.numeral}.
+                            </span>
+                            {section.title}
+                          </span>
+                          <span className="font-medium tabular-nums shrink-0">
+                            {covered}/{FOURRS_LENSES.length}
+                          </span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+              </div>
               {PLAN_SECTIONS.map((s) => {
                 const existing = rows[s.key];
                 const value = drafts[s.key] ?? "";
@@ -176,108 +251,157 @@ function PlanNarrativePage() {
                 const coverage = detectImpactCoverage(value);
                 const covered = IMPACT_LENSES.filter((l) => coverage[l.key]).length;
                 const pct = Math.round((covered / IMPACT_LENSES.length) * 100);
+                const fourRsCov = detectFourRsCoverage(value);
+                const fourRsCoveredCount = FOURRS_LENSES.filter((l) => fourRsCov[l.key]).length;
+                const fourRsPct = Math.round((fourRsCoveredCount / FOURRS_LENSES.length) * 100);
                 return (
                   <div key={s.key} id={`section-${s.key}`} className="scroll-mt-24">
-                    <SectionCard
-                      title={`${s.numeral}. ${s.title}`}
-                      subtitle={s.helper}
-                    >
-                <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      IMPACT framework coverage
-                    </div>
-                    <div className="text-xs font-medium text-slate-700">
-                      {covered}/{IMPACT_LENSES.length} lenses · {pct}%
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 mb-3">
-                    <div
-                      className={`h-full transition-all ${
-                        pct === 100
-                          ? "bg-emerald-500"
-                          : pct >= 50
-                            ? "bg-brand-primary"
-                            : "bg-amber-500"
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                    {IMPACT_LENSES.map((lens) => {
-                      const done = coverage[lens.key];
-                      return (
-                        <li
-                          key={lens.key}
-                          className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
-                            done ? "text-emerald-700 bg-emerald-50" : "text-slate-500"
-                          }`}
-                        >
-                          <span
-                            className={`flex size-4 items-center justify-center rounded-full border ${
-                              done
-                                ? "border-emerald-500 bg-emerald-500 text-white"
-                                : "border-slate-300 bg-white"
+                    <SectionCard title={`${s.numeral}. ${s.title}`} subtitle={s.helper}>
+                      <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            IMPACT framework coverage
+                          </div>
+                          <div className="text-xs font-medium text-slate-700">
+                            {covered}/{IMPACT_LENSES.length} lenses · {pct}%
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 mb-3">
+                          <div
+                            className={`h-full transition-all ${
+                              pct === 100
+                                ? "bg-emerald-500"
+                                : pct >= 50
+                                  ? "bg-brand-primary"
+                                  : "bg-amber-500"
                             }`}
-                          >
-                            {done && <Check className="size-3" strokeWidth={3} />}
-                          </span>
-                          <span className={done ? "font-medium" : ""}>{lens.label}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-                <textarea
-                  value={value}
-                  onChange={(e) => {
-                    setDrafts((d) => ({ ...d, [s.key]: e.target.value }));
-                    setDirty((d) => ({ ...d, [s.key]: true }));
-                  }}
-                  rows={14}
-                  placeholder={
-                    'Use the IMPACT framework sub-headings: "Inclusive Partnerships", "Measurable Outcomes", "Purpose-Driven Innovation", "Adaptive Strategies", "Community Empowerment", "Transparency & Accountability". Click "AI draft" to generate.'
-                  }
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono leading-relaxed focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                />
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                          {IMPACT_LENSES.map((lens) => {
+                            const done = coverage[lens.key];
+                            return (
+                              <li
+                                key={lens.key}
+                                className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
+                                  done ? "text-emerald-700 bg-emerald-50" : "text-slate-500"
+                                }`}
+                              >
+                                <span
+                                  className={`flex size-4 items-center justify-center rounded-full border ${
+                                    done
+                                      ? "border-emerald-500 bg-emerald-500 text-white"
+                                      : "border-slate-300 bg-white"
+                                  }`}
+                                >
+                                  {done && <Check className="size-3" strokeWidth={3} />}
+                                </span>
+                                <span className={done ? "font-medium" : ""}>{lens.label}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            4Rs framework coverage
+                          </div>
+                          <div className="text-xs font-medium text-slate-700">
+                            {fourRsCoveredCount}/{FOURRS_LENSES.length} lenses · {fourRsPct}%
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 mb-3">
+                          <div
+                            className={`h-full transition-all ${
+                              fourRsPct === 100
+                                ? "bg-emerald-500"
+                                : fourRsPct >= 50
+                                  ? "bg-violet-500"
+                                  : "bg-amber-500"
+                            }`}
+                            style={{ width: `${fourRsPct}%` }}
+                          />
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
+                          {FOURRS_LENSES.map((lens) => {
+                            const done = fourRsCov[lens.key];
+                            return (
+                              <li
+                                key={lens.key}
+                                className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${
+                                  done ? "text-violet-700 bg-violet-50" : "text-slate-500"
+                                }`}
+                              >
+                                <span
+                                  className={`flex size-4 items-center justify-center rounded-full border ${
+                                    done
+                                      ? "border-violet-500 bg-violet-500 text-white"
+                                      : "border-slate-300 bg-white"
+                                  }`}
+                                >
+                                  {done && <Check className="size-3" strokeWidth={3} />}
+                                </span>
+                                <span className={done ? "font-medium" : ""}>{lens.label}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      <textarea
+                        value={value}
+                        onChange={(e) => {
+                          setDrafts((d) => ({ ...d, [s.key]: e.target.value }));
+                          setDirty((d) => ({ ...d, [s.key]: true }));
+                        }}
+                        rows={14}
+                        placeholder={
+                          'Use the IMPACT sub-headings ("Inclusive Partnerships", "Measurable Outcomes", "Purpose-Driven Innovation", "Adaptive Strategies", "Community Empowerment", "Transparency & Accountability") and the 4Rs ("Relationships", "Resources", "Results", "Reputation"). Click "AI draft" to generate.'
+                        }
+                        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono leading-relaxed focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                      />
 
-                <div className="flex items-center justify-between mt-3">
-                  <div className="text-xs text-slate-500">
-                    {existing?.ai_drafted_at && (
-                      <span>
-                        Last AI draft {new Date(existing.ai_drafted_at).toLocaleDateString()} •{" "}
-                      </span>
-                    )}
-                    {existing?.updated_at && (
-                      <span>Saved {new Date(existing.updated_at).toLocaleString()}</span>
-                    )}
-                    {isDirty && <span className="text-amber-600 ml-2">• Unsaved changes</span>}
-                  </div>
-                  <div className="flex gap-2">
-                    <GhostButton
-                      onClick={() => aiDraft(s.key)}
-                      disabled={draftingKey === s.key}
-                    >
-                      {draftingKey === s.key ? (
-                        <Loader2 className="size-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="size-4 mr-1.5" />
-                      )}
-                      AI draft
-                    </GhostButton>
-                    <PrimaryButton
-                      onClick={() => save(s.key)}
-                      disabled={savingKey === s.key || !isDirty}
-                    >
-                      {savingKey === s.key ? (
-                        <Loader2 className="size-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <Save className="size-4 mr-1.5" />
-                      )}
-                      Save
-                    </PrimaryButton>
-                  </div>
-                </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <div className="text-xs text-slate-500">
+                          {existing?.ai_drafted_at && (
+                            <span>
+                              Last AI draft {new Date(existing.ai_drafted_at).toLocaleDateString()}{" "}
+                              •{" "}
+                            </span>
+                          )}
+                          {existing?.updated_at && (
+                            <span>Saved {new Date(existing.updated_at).toLocaleString()}</span>
+                          )}
+                          {isDirty && (
+                            <span className="text-amber-600 ml-2">• Unsaved changes</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <GhostButton
+                            onClick={() => aiDraft(s.key)}
+                            disabled={draftingKey === s.key}
+                          >
+                            {draftingKey === s.key ? (
+                              <Loader2 className="size-4 mr-1.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="size-4 mr-1.5" />
+                            )}
+                            AI draft
+                          </GhostButton>
+                          <PrimaryButton
+                            onClick={() => save(s.key)}
+                            disabled={savingKey === s.key || !isDirty}
+                          >
+                            {savingKey === s.key ? (
+                              <Loader2 className="size-4 mr-1.5 animate-spin" />
+                            ) : (
+                              <Save className="size-4 mr-1.5" />
+                            )}
+                            Save
+                          </PrimaryButton>
+                        </div>
+                      </div>
                     </SectionCard>
                   </div>
                 );

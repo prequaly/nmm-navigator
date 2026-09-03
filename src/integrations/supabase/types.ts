@@ -1898,36 +1898,51 @@ export type Database = {
           color: string | null
           created_at: string
           description: string | null
+          fourrs_dimensions: string[]
           id: string
+          impact_lenses: string[]
           name: string
           organization_id: string
           owner: string | null
           plan_id: string
+          priority_level: string | null
           sort_order: number
+          timeline_end: string | null
+          timeline_start: string | null
           updated_at: string
         }
         Insert: {
           color?: string | null
           created_at?: string
           description?: string | null
+          fourrs_dimensions?: string[]
           id?: string
+          impact_lenses?: string[]
           name: string
           organization_id: string
           owner?: string | null
           plan_id: string
+          priority_level?: string | null
           sort_order?: number
+          timeline_end?: string | null
+          timeline_start?: string | null
           updated_at?: string
         }
         Update: {
           color?: string | null
           created_at?: string
           description?: string | null
+          fourrs_dimensions?: string[]
           id?: string
+          impact_lenses?: string[]
           name?: string
           organization_id?: string
           owner?: string | null
           plan_id?: string
+          priority_level?: string | null
           sort_order?: number
+          timeline_end?: string | null
+          timeline_start?: string | null
           updated_at?: string
         }
         Relationships: [

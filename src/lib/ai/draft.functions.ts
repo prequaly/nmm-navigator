@@ -5,12 +5,7 @@ import { createGeminiProvider } from "@/lib/ai-gateway.server";
 import { z } from "zod";
 
 const Input = z.object({
-  kind: z.enum([
-    "meeting_summary",
-    "assessment_reflection",
-    "plan_narrative",
-    "plan_section",
-  ]),
+  kind: z.enum(["meeting_summary", "assessment_reflection", "plan_narrative", "plan_section"]),
   organizationId: z.string().uuid(),
   // Per-kind payload (kept loose; validated in handler)
   meetingId: z.string().uuid().optional(),
@@ -105,10 +100,7 @@ export const draftNarrative = createServerFn({ method: "POST" })
       if (agenda?.length) {
         lines.push(
           `Agenda:\n${agenda
-            .map(
-              (a, i) =>
-                `${i + 1}. ${a.title}${a.description ? " — " + a.description : ""}`,
-            )
+            .map((a, i) => `${i + 1}. ${a.title}${a.description ? " — " + a.description : ""}`)
             .join("\n")}`,
         );
       }
@@ -125,7 +117,10 @@ export const draftNarrative = createServerFn({ method: "POST" })
       if (actions?.length) {
         lines.push(
           `Action items:\n${actions
-            .map((a) => `- ${a.context ?? "(no description)"}${a.commitment_due_date ? " due " + a.commitment_due_date : ""}`)
+            .map(
+              (a) =>
+                `- ${a.context ?? "(no description)"}${a.commitment_due_date ? " due " + a.commitment_due_date : ""}`,
+            )
             .join("\n")}`,
         );
       }
@@ -199,6 +194,7 @@ Return ONLY the paragraph.`;
         { data: expenses },
         { data: grants },
         { data: swot },
+        { data: assessments },
       ] = await Promise.all([
         supabase
           .from("organizations")
@@ -209,7 +205,7 @@ Return ONLY the paragraph.`;
           .maybeSingle(),
         supabase
           .from("strategic_pillars")
-          .select("name,description,sort_order")
+          .select("name,description,sort_order,impact_lenses,fourrs_dimensions,priority_level")
           .eq("organization_id", data.organizationId)
           .order("sort_order"),
         supabase
@@ -244,10 +240,15 @@ Return ONLY the paragraph.`;
           )
           .eq("organization_id", data.organizationId),
         supabase
+          .from("swot_items")
+          .select("quadrant,text")
+          .eq("organization_id", data.organizationId),
+        supabase
           .from("assessment_responses")
-          .select("framework_key,score,responses")
+          .select("assessment_type,score,maturity_level")
           .eq("organization_id", data.organizationId)
-          .order("created_at", { ascending: false })
+          .not("completed_at", "is", null)
+          .order("updated_at", { ascending: false })
           .limit(20),
       ]);
 
@@ -262,6 +263,7 @@ Return ONLY the paragraph.`;
         expenses: expenses ?? [],
         grants: grants ?? [],
         swot: swot ?? [],
+        assessmentScores: assessments ?? [],
       };
 
       const IMPACT_INSTRUCTION = `Format the section with these six bold sub-headings, each on its own line followed by 1–3 sentences:
@@ -272,6 +274,12 @@ Return ONLY the paragraph.`;
 **Community Empowerment:**
 **Transparency & Accountability:**`;
 
+      const FOURRS_INSTRUCTION = `Also format a second block with these four bold sub-headings, each on its own line followed by 1–3 sentences:
+**Relationships:**
+**Resources:**
+**Results:**
+**Reputation:**`;
+
       system =
         "You are a senior nonprofit strategy consultant writing in the organization's voice for an external Strategic Plan document. Professional, confident, specific. No preamble. No meta commentary. Plain prose unless the user requests structure.";
       prompt = `Draft the **${cfg.title}** section of a Strategic Plan.
@@ -281,6 +289,7 @@ ${orgLine}
 ${cfg.intro}
 
 ${cfg.impact ? IMPACT_INSTRUCTION + "\n" : ""}
+${cfg.fourrs ? FOURRS_INSTRUCTION + "\n" : ""}
 Reference data (use what is relevant, ignore what isn't):
 ${JSON.stringify(ctx, null, 2).slice(0, 8000)}
 

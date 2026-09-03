@@ -12,6 +12,8 @@ import {
   type GrantRow,
 } from "@/lib/finance/projections";
 import { loadJourneyState, greetingFor, type JourneyState } from "@/lib/plan/completion";
+import { GettingStarted } from "@/components/dashboard/GettingStarted";
+import { AssessmentRecommendations } from "@/components/dashboard/AssessmentRecommendations";
 import {
   ArrowRight,
   Calendar,
@@ -20,13 +22,13 @@ import {
   CheckCircle2,
   Heart,
   Sparkles,
-  TrendingUp,
   Users,
   DollarSign,
   Target as TargetIcon,
   FileText,
   Wallet,
   Compass,
+  AlertTriangle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -34,26 +36,89 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type ActionItem = { id: string; title: string; status: string; due_date: string | null; priority: string | null };
+type ActionItem = {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  priority: string | null;
+};
+type KpiRow = {
+  id: string;
+  name: string;
+  category: string | null;
+  current_value: number | null;
+  target: number | null;
+};
+type RiskRow = { id: string; title: string; likelihood: number; impact: number };
+type FrameworkScore = { assessment_type: string; score: number | null };
+
+const BENEFICIARY_PATTERN = /beneficiar|particip|served|clients?|youth|families|members/i;
 
 /* ---------- Journey step map (mirrors sidebar) ---------- */
 
-const STEP_MAP: Record<string, { n: number; label: string; to: string; next?: { label: string; est: string } }> = {
-  foundation: { n: 1, label: "Build My Organization", to: "/profile", next: { label: "Complete Org Profile", est: "8 minutes" } },
-  assess: { n: 2, label: "Assess My Organization", to: "/assess/health", next: { label: "Complete Financial Health Assessment", est: "12 minutes" } },
-  plan: { n: 3, label: "Design My Strategy", to: "/plan/builder", next: { label: "Draft Strategic Priorities", est: "20 minutes" } },
-  measure: { n: 7, label: "Measure My Impact", to: "/plan/kpis", next: { label: "Add first KPI", est: "6 minutes" } },
-  budget: { n: 5, label: "Fund My Strategy", to: "/fund/budget", next: { label: "Build Annual Budget", est: "25 minutes" } },
-  fund: { n: 5, label: "Fund My Strategy", to: "/fund/grants", next: { label: "Log first grant", est: "5 minutes" } },
-  execute: { n: 6, label: "Execute My Plan", to: "/execute/tasks", next: { label: "Add first action item", est: "3 minutes" } },
-  improve: { n: 8, label: "Annual Review", to: "/report/monthly-review", next: { label: "Run Monthly Review", est: "10 minutes" } },
+const STEP_MAP: Record<
+  string,
+  { n: number; label: string; to: string; next?: { label: string; est: string } }
+> = {
+  foundation: {
+    n: 1,
+    label: "Build My Organization",
+    to: "/profile",
+    next: { label: "Complete Org Profile", est: "8 minutes" },
+  },
+  assess: {
+    n: 2,
+    label: "Assess My Organization",
+    to: "/assess/health",
+    next: { label: "Complete Financial Health Assessment", est: "12 minutes" },
+  },
+  plan: {
+    n: 3,
+    label: "Design My Strategy",
+    to: "/plan/builder",
+    next: { label: "Draft Strategic Priorities", est: "20 minutes" },
+  },
+  measure: {
+    n: 7,
+    label: "Measure My Impact",
+    to: "/plan/kpis",
+    next: { label: "Add first KPI", est: "6 minutes" },
+  },
+  budget: {
+    n: 5,
+    label: "Fund My Strategy",
+    to: "/fund/budget",
+    next: { label: "Build Annual Budget", est: "25 minutes" },
+  },
+  fund: {
+    n: 5,
+    label: "Fund My Strategy",
+    to: "/fund/grants",
+    next: { label: "Log first grant", est: "5 minutes" },
+  },
+  execute: {
+    n: 6,
+    label: "Execute My Plan",
+    to: "/execute/tasks",
+    next: { label: "Add first action item", est: "3 minutes" },
+  },
+  improve: {
+    n: 8,
+    label: "Annual Review",
+    to: "/report/monthly-review",
+    next: { label: "Run Monthly Review", est: "10 minutes" },
+  },
 };
 
 const QUOTES = [
   { text: "A goal without a plan is just a wish.", author: "Antoine de Saint-Exupéry" },
   { text: "The best way to predict the future is to create it.", author: "Peter Drucker" },
   { text: "Strategy without execution is hallucination.", author: "Thomas Edison" },
-  { text: "Vision without action is a daydream. Action without vision is a nightmare.", author: "Japanese proverb" },
+  {
+    text: "Vision without action is a daydream. Action without vision is a nightmare.",
+    author: "Japanese proverb",
+  },
 ];
 
 function Dashboard() {
@@ -65,29 +130,69 @@ function Dashboard() {
   const [revenueLines, setRevenueLines] = useState<BudgetLine[]>([]);
   const [expenseLines, setExpenseLines] = useState<BudgetLine[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
-  const [meetings, setMeetings] = useState<{ id: string; title: string; scheduled_at: string | null }[]>([]);
+  const [meetings, setMeetings] = useState<
+    { id: string; title: string; scheduled_at: string | null }[]
+  >([]);
   const [journey, setJourney] = useState<JourneyState | null>(null);
-  const [kpiCount, setKpiCount] = useState<number>(0);
-  const [beneficiaries, setBeneficiaries] = useState<number>(0);
+  const [kpis, setKpis] = useState<KpiRow[]>([]);
+  const [risks, setRisks] = useState<RiskRow[]>([]);
+  const [frameworkScores, setFrameworkScores] = useState<FrameworkScore[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const meta = (data.user?.user_metadata ?? {}) as { full_name?: string; name?: string };
-      setUserName(meta.full_name?.split(" ")[0] ?? meta.name?.split(" ")[0] ?? data.user?.email?.split("@")[0] ?? null);
+      setUserName(
+        meta.full_name?.split(" ")[0] ??
+          meta.name?.split(" ")[0] ??
+          data.user?.email?.split("@")[0] ??
+          null,
+      );
     });
   }, []);
 
   useEffect(() => {
     if (!orgId) return;
     (async () => {
-      const [org, g, r, e, a, m, kAll, j] = await Promise.all([
+      const [org, g, r, e, a, m, kAll, rk, fs, j] = await Promise.all([
         supabase.from("organizations").select("name,mission,onboarded_at").eq("id", orgId).single(),
         supabase.from("grants").select("*").eq("organization_id", orgId),
-        supabase.from("revenue_streams").select("id,name,category,yearly_amounts").eq("organization_id", orgId),
-        supabase.from("expense_lines").select("id,name,category,yearly_amounts").eq("organization_id", orgId),
-        supabase.from("action_items").select("id,title,status,due_date,priority").eq("organization_id", orgId).neq("status", "done").order("due_date", { ascending: true, nullsFirst: false }).limit(8),
-        supabase.from("meetings").select("id,title,scheduled_at").eq("organization_id", orgId).gte("scheduled_at", new Date().toISOString()).order("scheduled_at", { ascending: true }).limit(4),
-        supabase.from("kpis").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+        supabase
+          .from("revenue_streams")
+          .select("id,name,category,yearly_amounts")
+          .eq("organization_id", orgId),
+        supabase
+          .from("expense_lines")
+          .select("id,name,category,yearly_amounts")
+          .eq("organization_id", orgId),
+        supabase
+          .from("action_items")
+          .select("id,title,status,due_date,priority")
+          .eq("organization_id", orgId)
+          .neq("status", "done")
+          .order("due_date", { ascending: true, nullsFirst: false })
+          .limit(8),
+        supabase
+          .from("meetings")
+          .select("id,title,scheduled_at")
+          .eq("organization_id", orgId)
+          .gte("scheduled_at", new Date().toISOString())
+          .order("scheduled_at", { ascending: true })
+          .limit(4),
+        supabase
+          .from("kpis")
+          .select("id,name,category,current_value,target")
+          .eq("organization_id", orgId),
+        supabase
+          .from("risks")
+          .select("id,title,likelihood,impact")
+          .eq("organization_id", orgId)
+          .eq("status", "open"),
+        supabase
+          .from("assessment_responses")
+          .select("assessment_type,score")
+          .eq("organization_id", orgId)
+          .in("assessment_type", ["impact", "4rs", "revenue-hhi"])
+          .not("completed_at", "is", null),
         loadJourneyState(orgId),
       ]);
       if (org.data) {
@@ -96,32 +201,54 @@ function Dashboard() {
           return;
         }
         setOrgName((org.data as any).name ?? "");
-        setBeneficiaries(0);
       }
       setGrants((g.data as GrantRow[]) ?? []);
       setRevenueLines((r.data as BudgetLine[]) ?? []);
       setExpenseLines((e.data as BudgetLine[]) ?? []);
       setActions((a.data as ActionItem[]) ?? []);
       setMeetings((m.data as any) ?? []);
-      setKpiCount(kAll.count ?? 0);
+      setKpis((kAll.data as KpiRow[]) ?? []);
+      setRisks((rk.data as RiskRow[]) ?? []);
+      setFrameworkScores((fs.data as FrameworkScore[]) ?? []);
       setJourney(j);
     })();
   }, [orgId]);
 
   const fin = useMemo(() => {
-    const buckets = buildMonthRange(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 12);
+    const buckets = buildMonthRange(
+      new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      12,
+    );
     const { committed, weighted } = aggregateGrantsByMonth(grants, buckets);
     const other = aggregateBudgetByMonth(revenueLines, buckets, new Date().getFullYear());
     const exp = aggregateBudgetByMonth(expenseLines, buckets, new Date().getFullYear());
-    const totalRev = committed.reduce((a, b) => a + b, 0) + weighted.reduce((a, b) => a + b, 0) + other.reduce((a, b) => a + b, 0);
+    const totalRev =
+      committed.reduce((a, b) => a + b, 0) +
+      weighted.reduce((a, b) => a + b, 0) +
+      other.reduce((a, b) => a + b, 0);
     const totalExp = exp.reduce((a, b) => a + b, 0);
     return { totalRev, totalExp, gap: totalExp - totalRev };
   }, [grants, revenueLines, expenseLines]);
 
-  const goalsOnTrack = kpiCount > 0 ? Math.round((kpiCount * 0.76)) : 0; // placeholder ratio until KPI value logic is wired
-  const goalsOnTrackPct = kpiCount ? Math.round((goalsOnTrack / kpiCount) * 100) : 0;
+  // A KPI counts "on track" when it has both a current value and a target
+  // and is at or above 80% of that target. KPIs with no target/value yet
+  // aren't counted as off-track — they just haven't been measured.
+  const measurableKpis = kpis.filter((k) => k.target != null && k.target !== 0);
+  const kpisOnTrack = measurableKpis.filter(
+    (k) => (k.current_value ?? 0) / (k.target as number) >= 0.8,
+  ).length;
+  const goalsOnTrackPct = measurableKpis.length
+    ? Math.round((kpisOnTrack / measurableKpis.length) * 100)
+    : 0;
 
-  const overdueCount = actions.filter((a) => a.due_date && new Date(a.due_date) < new Date()).length;
+  const beneficiaries = kpis
+    .filter((k) => BENEFICIARY_PATTERN.test(`${k.name} ${k.category ?? ""}`))
+    .reduce((sum, k) => sum + (k.current_value ?? 0), 0);
+
+  const overdueCount = actions.filter(
+    (a) => a.due_date && new Date(a.due_date) < new Date(),
+  ).length;
+  const criticalRisks = risks.filter((r) => r.likelihood * r.impact >= 16);
 
   const stepInfo = useMemo(() => {
     const cur = journey?.stages[journey.currentIndex];
@@ -136,13 +263,20 @@ function Dashboard() {
 
   const quote = useMemo(() => {
     const d = new Date();
-    return QUOTES[(d.getFullYear() * 366 + (d.getMonth() * 31) + d.getDate()) % QUOTES.length];
+    return QUOTES[(d.getFullYear() * 366 + d.getMonth() * 31 + d.getDate()) % QUOTES.length];
   }, []);
 
   const monthLabel = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
 
   const jumpBackIn = useMemo(() => {
-    const items: { title: string; sub: string; to: string; cta: string; icon: any; progress?: number }[] = [];
+    const items: {
+      title: string;
+      sub: string;
+      to: string;
+      cta: string;
+      icon: any;
+      progress?: number;
+    }[] = [];
     if (journey) {
       const pct = journey.completionPct;
       items.push({
@@ -155,12 +289,20 @@ function Dashboard() {
       });
     }
     if (revenueLines.length + expenseLines.length > 0) {
-      items.push({ title: "Budget Overview", sub: "Last updated today", to: "/fund/budget", cta: "View", icon: DollarSign });
+      items.push({
+        title: "Budget Overview",
+        sub: "Last updated today",
+        to: "/fund/budget",
+        cta: "View",
+        icon: DollarSign,
+      });
     }
     if (meetings[0]) {
       items.push({
         title: meetings[0].title,
-        sub: meetings[0].scheduled_at ? `Due ${new Date(meetings[0].scheduled_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Scheduled",
+        sub: meetings[0].scheduled_at
+          ? `Due ${new Date(meetings[0].scheduled_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+          : "Scheduled",
         to: "/governance/meetings",
         cta: "Continue",
         icon: Users,
@@ -169,16 +311,30 @@ function Dashboard() {
     if (grants[0]) {
       items.push({
         title: (grants[0] as any).grant_name ?? (grants[0] as any).funder_name ?? "Grant proposal",
-        sub: grants[0].application_deadline ? `Due ${new Date(grants[0].application_deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : (grants[0].status ?? "In progress"),
+        sub: grants[0].application_deadline
+          ? `Due ${new Date(grants[0].application_deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+          : (grants[0].status ?? "In progress"),
         to: "/fund/grants",
         cta: "Continue",
         icon: Wallet,
       });
     }
     while (items.length < 4) {
-      items.push({ title: "Plan Narrative", sub: "Draft your story", to: "/plan/narrative", cta: "Open", icon: Compass });
+      items.push({
+        title: "Plan Narrative",
+        sub: "Draft your story",
+        to: "/plan/narrative",
+        cta: "Open",
+        icon: Compass,
+      });
       if (items.length >= 4) break;
-      items.push({ title: "Add a KPI", sub: "Start measuring", to: "/plan/kpis", cta: "Add", icon: TargetIcon });
+      items.push({
+        title: "Add a KPI",
+        sub: "Start measuring",
+        to: "/plan/kpis",
+        cta: "Add",
+        icon: TargetIcon,
+      });
       break;
     }
     return items.slice(0, 4);
@@ -186,7 +342,10 @@ function Dashboard() {
 
   if (orgLoading) {
     return (
-      <AppShell title="NMM Navigator — Guided Experience" subtitle="A Strategic Planning Partner for Nonprofits">
+      <AppShell
+        title="NMM Navigator — Guided Experience"
+        subtitle="A Strategic Planning Partner for Nonprofits"
+      >
         <SectionCard padding="p-10">
           <div className="text-center text-sm text-muted-foreground">Loading…</div>
         </SectionCard>
@@ -196,10 +355,17 @@ function Dashboard() {
 
   if (!orgId) {
     return (
-      <AppShell title="NMM Navigator — Guided Experience" subtitle="A Strategic Planning Partner for Nonprofits">
+      <AppShell
+        title="NMM Navigator — Guided Experience"
+        subtitle="A Strategic Planning Partner for Nonprofits"
+      >
         <SectionCard padding="p-10">
           <div className="text-center text-sm text-muted-foreground">
-            No organization yet — <Link to="/profile" className="text-teal-primary underline">set one up</Link>.
+            No organization yet —{" "}
+            <Link to="/profile" className="text-teal-primary underline">
+              set one up
+            </Link>
+            .
           </div>
         </SectionCard>
       </AppShell>
@@ -221,12 +387,45 @@ function Dashboard() {
           <div>
             <h2 className="font-serif text-[1.9rem] text-teal-deep leading-tight">
               {greeting}!{" "}
-              <span className="inline-block animate-[wave_1.6s_ease-in-out_infinite] origin-[70%_70%]">👋</span>
+              <span className="inline-block animate-[wave_1.6s_ease-in-out_infinite] origin-[70%_70%]">
+                👋
+              </span>
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              You're making great progress on {orgName ? <span className="text-teal-deep font-medium">{orgName}</span> : "your"}'s strategic plan.
+              You're making great progress on{" "}
+              {orgName ? <span className="text-teal-deep font-medium">{orgName}</span> : "your"}'s
+              strategic plan.
             </p>
           </div>
+
+          {/* Alerts — only meaningful items, never a permanent fixture */}
+          {(overdueCount > 0 || criticalRisks.length > 0) && (
+            <div className="rounded-2xl border border-coral/30 bg-coral/5 p-4 flex items-start gap-3">
+              <AlertTriangle className="size-5 text-coral shrink-0 mt-0.5" />
+              <div className="text-sm text-teal-deep space-y-1">
+                {overdueCount > 0 && (
+                  <p>
+                    <Link to="/execute/tasks" className="font-medium underline underline-offset-2">
+                      {overdueCount} overdue task{overdueCount === 1 ? "" : "s"}
+                    </Link>{" "}
+                    need attention.
+                  </p>
+                )}
+                {criticalRisks.length > 0 && (
+                  <p>
+                    <Link to="/plan/risks" className="font-medium underline underline-offset-2">
+                      {criticalRisks.length} critical risk{criticalRisks.length === 1 ? "" : "s"}
+                    </Link>{" "}
+                    ({criticalRisks.map((r) => r.title).join(", ")}){" "}
+                    {criticalRisks.length === 1 ? "requires" : "require"} board-level mitigation
+                    review.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <GettingStarted orgId={orgId} />
 
           {/* Journey progress + Quote row */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -234,11 +433,17 @@ function Dashboard() {
             <SectionCard className="lg:col-span-3" padding="p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Your Strategic Planning Journey</p>
-                  <h3 className="font-serif text-xl text-teal-deep mt-1">Step {stepInfo.n}: {stepInfo.label}</h3>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Your Strategic Planning Journey
+                  </p>
+                  <h3 className="font-serif text-xl text-teal-deep mt-1">
+                    Step {stepInfo.n}: {stepInfo.label}
+                  </h3>
                 </div>
                 <div className="text-right">
-                  <div className="font-serif text-3xl text-teal-primary tabular-nums">{journeyPct}%</div>
+                  <div className="font-serif text-3xl text-teal-primary tabular-nums">
+                    {journeyPct}%
+                  </div>
                   <p className="text-[11px] text-teal-primary/80 font-medium">On Track</p>
                 </div>
               </div>
@@ -252,9 +457,22 @@ function Dashboard() {
 
               <div className="mt-5 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
                 <div className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Current Step:</span> <span className="font-medium text-teal-deep">{stepInfo.label}</span></p>
-                  <p><span className="text-muted-foreground">Next Step:</span> <span className="font-medium text-teal-deep">{nextStepInfo.next?.label ?? nextStepInfo.label}</span></p>
-                  <p><span className="text-muted-foreground">Est. Time:</span> <span className="font-medium text-teal-deep">{nextStepInfo.next?.est ?? "10 minutes"}</span></p>
+                  <p>
+                    <span className="text-muted-foreground">Current Step:</span>{" "}
+                    <span className="font-medium text-teal-deep">{stepInfo.label}</span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Next Step:</span>{" "}
+                    <span className="font-medium text-teal-deep">
+                      {nextStepInfo.next?.label ?? nextStepInfo.label}
+                    </span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Est. Time:</span>{" "}
+                    <span className="font-medium text-teal-deep">
+                      {nextStepInfo.next?.est ?? "10 minutes"}
+                    </span>
+                  </p>
                 </div>
                 <Link to={nextStepInfo.to}>
                   <PrimaryButton>
@@ -284,19 +502,49 @@ function Dashboard() {
             </SectionCard>
           </div>
 
+          {/* Framework scores — IMPACT, 4Rs, Funding Health at a glance */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FrameworkScoreCard
+              label="IMPACT Score"
+              score={frameworkScores.find((f) => f.assessment_type === "impact")?.score ?? null}
+              to="/assess/impact"
+              cta="Take IMPACT assessment"
+            />
+            <FrameworkScoreCard
+              label="4Rs Score"
+              score={frameworkScores.find((f) => f.assessment_type === "4rs")?.score ?? null}
+              to="/assess/4rs"
+              cta="Take 4Rs assessment"
+            />
+            <FrameworkScoreCard
+              label="Funding Health"
+              score={
+                frameworkScores.find((f) => f.assessment_type === "revenue-hhi")?.score ?? null
+              }
+              to="/assess/revenue-hhi"
+              cta="Take Revenue Diversity assessment"
+            />
+          </div>
+
           {/* Today's Priorities */}
           <SectionCard
             title="Today's Priorities"
             subtitle="Focus on what matters most right now."
             right={
-              <Link to="/execute/calendar" className="text-xs text-teal-primary hover:underline inline-flex items-center gap-1">
+              <Link
+                to="/execute/calendar"
+                className="text-xs text-teal-primary hover:underline inline-flex items-center gap-1"
+              >
                 View Calendar <ArrowRight className="size-3" />
               </Link>
             }
           >
             {actions.length === 0 ? (
               <div className="text-sm text-muted-foreground py-6 text-center">
-                No open priorities. <Link to="/execute/tasks" className="text-teal-primary underline">Add a task →</Link>
+                No open priorities.{" "}
+                <Link to="/execute/tasks" className="text-teal-primary underline">
+                  Add a task →
+                </Link>
               </div>
             ) : (
               <ul className="divide-y divide-border/60">
@@ -304,7 +552,10 @@ function Dashboard() {
                   const overdue = a.due_date && new Date(a.due_date) < new Date();
                   const done = a.status === "done";
                   const due = a.due_date
-                    ? new Date(a.due_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                    ? new Date(a.due_date).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })
                     : "—";
                   return (
                     <li key={a.id} className="flex items-center gap-3 py-3">
@@ -313,7 +564,9 @@ function Dashboard() {
                       ) : (
                         <Circle className="size-5 text-muted-foreground shrink-0" />
                       )}
-                      <span className={`flex-1 text-sm ${done ? "line-through text-muted-foreground" : "text-teal-deep"}`}>
+                      <span
+                        className={`flex-1 text-sm ${done ? "line-through text-muted-foreground" : "text-teal-deep"}`}
+                      >
                         {a.title}
                       </span>
                       {a.priority?.toLowerCase() === "high" && (
@@ -321,7 +574,9 @@ function Dashboard() {
                           High Priority
                         </span>
                       )}
-                      <span className={`text-xs tabular-nums w-24 text-right ${overdue ? "text-coral font-medium" : "text-muted-foreground"}`}>
+                      <span
+                        className={`text-xs tabular-nums w-24 text-right ${overdue ? "text-coral font-medium" : "text-muted-foreground"}`}
+                      >
                         {due}
                       </span>
                     </li>
@@ -335,7 +590,10 @@ function Dashboard() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-[15px] font-semibold text-teal-deep">Jump Back In</h3>
-              <Link to="/execute/tasks" className="text-xs text-teal-primary hover:underline inline-flex items-center gap-1">
+              <Link
+                to="/execute/tasks"
+                className="text-xs text-teal-primary hover:underline inline-flex items-center gap-1"
+              >
                 View All <ArrowRight className="size-3" />
               </Link>
             </div>
@@ -361,7 +619,9 @@ function Dashboard() {
                             style={{ width: `${Math.max(4, it.progress)}%` }}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">{it.progress}%</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
+                          {it.progress}%
+                        </p>
                       </div>
                     )}
                     <p className="mt-3 text-xs font-medium text-teal-primary group-hover:underline inline-flex items-center gap-1">
@@ -373,32 +633,15 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Recommended for You */}
+          {/* Recommended for You — real, assessment-driven, not static copy */}
           <div>
             <div className="mb-3">
               <h3 className="text-[15px] font-semibold text-teal-deep">Recommended for You</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Personalized recommendations to help you move forward.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Generated from your completed assessments — lowest score first.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <RecCard
-                icon={TrendingUp}
-                title="Explore Revenue Diversification"
-                sub="Reduce reliance on a few funding sources"
-                to="/assess/revenue-hhi"
-              />
-              <RecCard
-                icon={Wallet}
-                title="Search Grant Opportunities"
-                sub="Find grants aligned with your mission"
-                to="/fund/grants"
-              />
-              <RecCard
-                icon={TargetIcon}
-                title="Update Your KPIs"
-                sub="Keep your metrics current and meaningful"
-                to="/plan/kpis"
-              />
-            </div>
+            <AssessmentRecommendations orgId={orgId} />
           </div>
         </div>
 
@@ -413,10 +656,30 @@ function Dashboard() {
               </button>
             </div>
             <ul className="space-y-3.5">
-              <GlanceRow icon={FileText} label="Tasks Due" value={String(actions.length)} tone={overdueCount ? "coral" : "teal"} />
-              <GlanceRow icon={TargetIcon} label="Goals On Track" value={`${goalsOnTrackPct}%`} tone="teal" />
-              <GlanceRow icon={DollarSign} label="Funding Gap" value={compactCurrency(Math.max(0, fin.gap))} tone={fin.gap > 0 ? "coral" : "teal"} />
-              <GlanceRow icon={Users} label="Beneficiaries Impacted" value={beneficiaries.toLocaleString()} tone="teal" />
+              <GlanceRow
+                icon={FileText}
+                label="Tasks Due"
+                value={String(actions.length)}
+                tone={overdueCount ? "coral" : "teal"}
+              />
+              <GlanceRow
+                icon={TargetIcon}
+                label="Goals On Track"
+                value={`${goalsOnTrackPct}%`}
+                tone="teal"
+              />
+              <GlanceRow
+                icon={DollarSign}
+                label="Funding Gap"
+                value={compactCurrency(Math.max(0, fin.gap))}
+                tone={fin.gap > 0 ? "coral" : "teal"}
+              />
+              <GlanceRow
+                icon={Users}
+                label="Beneficiaries Impacted"
+                value={beneficiaries.toLocaleString()}
+                tone="teal"
+              />
             </ul>
             <Link
               to="/report/insights"
@@ -428,7 +691,9 @@ function Dashboard() {
 
           {/* Invite Your Team */}
           <SectionCard padding="p-5">
-            <h3 className="text-[15px] font-semibold text-teal-deep">Invite Your Team or Collaborators</h3>
+            <h3 className="text-[15px] font-semibold text-teal-deep">
+              Invite Your Team or Collaborators
+            </h3>
             <p className="text-xs text-muted-foreground mt-1.5">
               Bring your team, board members, or consultants into the journey.
             </p>
@@ -446,7 +711,10 @@ function Dashboard() {
             <Link to="/profile" className="block">
               <PrimaryButton className="w-full justify-center">Invite People</PrimaryButton>
             </Link>
-            <Link to="/report/insights" className="mt-3 block text-center text-xs text-teal-primary hover:underline">
+            <Link
+              to="/report/insights"
+              className="mt-3 block text-center text-xs text-teal-primary hover:underline"
+            >
               Learn More →
             </Link>
           </SectionCard>
@@ -461,7 +729,14 @@ function Dashboard() {
                     <div className="min-w-0">
                       <p className="text-sm text-teal-deep truncate">{m.title}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {m.scheduled_at ? new Date(m.scheduled_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "TBD"}
+                        {m.scheduled_at
+                          ? new Date(m.scheduled_at).toLocaleString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })
+                          : "TBD"}
                       </p>
                     </div>
                   </li>
@@ -484,8 +759,19 @@ function Dashboard() {
   );
 }
 
-function GlanceRow({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone: "teal" | "coral" | "gold" }) {
-  const toneClass = tone === "coral" ? "text-coral" : tone === "gold" ? "text-gold" : "text-teal-primary";
+function GlanceRow({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  tone: "teal" | "coral" | "gold";
+}) {
+  const toneClass =
+    tone === "coral" ? "text-coral" : tone === "gold" ? "text-gold" : "text-teal-primary";
   return (
     <li className="flex items-center gap-3">
       <span className="size-8 rounded-lg bg-teal-soft/40 grid place-items-center shrink-0">
@@ -497,20 +783,33 @@ function GlanceRow({ icon: Icon, label, value, tone }: { icon: any; label: strin
   );
 }
 
-function RecCard({ icon: Icon, title, sub, to }: { icon: any; title: string; sub: string; to: string }) {
+function FrameworkScoreCard({
+  label,
+  score,
+  to,
+  cta,
+}: {
+  label: string;
+  score: number | null;
+  to: string;
+  cta: string;
+}) {
   return (
     <Link
       to={to}
-      className="group bg-card rounded-2xl border border-border/70 p-4 flex items-center gap-3 hover:border-teal-primary/50 hover:shadow-md transition-all"
+      className="block bg-card rounded-2xl border border-border/70 p-4 hover:border-teal-primary/50 hover:shadow-md transition-all"
     >
-      <span className="size-10 rounded-lg bg-teal-soft/40 text-teal-primary grid place-items-center shrink-0">
-        <Icon className="size-5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-teal-deep leading-tight">{title}</p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>
-      </div>
-      <ChevronRight className="size-4 text-muted-foreground group-hover:text-teal-primary shrink-0" />
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+      {score != null ? (
+        <p className="font-serif text-3xl text-teal-deep mt-1 tabular-nums">
+          {score}
+          <span className="text-sm text-muted-foreground">/100</span>
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground mt-2">{cta} →</p>
+      )}
     </Link>
   );
 }
