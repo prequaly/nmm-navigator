@@ -28,6 +28,17 @@ const STEPS = [
   { key: "priority", label: "First Priority", icon: Target },
 ] as const;
 
+const STAGE_OPTIONS = [
+  { value: "exploring", label: "I am exploring or planning a new nonprofit." },
+  { value: "new_launch", label: "We recently launched and are building our foundation." },
+  { value: "early_stage", label: "We are operating but are still early-stage." },
+  { value: "established", label: "We are an established organization." },
+  {
+    value: "established_transforming",
+    label: "We are an established organization preparing for significant growth or transformation.",
+  },
+] as const;
+
 const VALUE_SUGGESTIONS = [
   "Integrity",
   "Community first",
@@ -47,7 +58,10 @@ const HEALTH_QUESTIONS = [
   { id: "mission_clarity", label: "Our mission is clearly defined and shared by the whole team." },
   { id: "strategic_plan", label: "We have a written strategic plan that's actively used." },
   { id: "board_engagement", label: "Our board is engaged and contributes beyond meetings." },
-  { id: "financial_visibility", label: "We have real-time visibility into our financial position." },
+  {
+    id: "financial_visibility",
+    label: "We have real-time visibility into our financial position.",
+  },
   { id: "outcome_tracking", label: "We track program outcomes against measurable goals." },
 ] as const;
 
@@ -61,7 +75,7 @@ function OnboardingWizard() {
   const [name, setName] = useState("");
   const [mission, setMission] = useState("");
   const [budget, setBudget] = useState<string>("");
-  const [fyStart, setFyStart] = useState("01-01");
+  const [stage, setStage] = useState<string>("");
 
   // Step 2: values
   const [values, setValues] = useState<string[]>([]);
@@ -79,7 +93,7 @@ function OnboardingWizard() {
     (async () => {
       const { data } = await supabase
         .from("organizations")
-        .select("name,mission,annual_budget,values,onboarded_at")
+        .select("name,mission,annual_budget,values,stage,onboarded_at")
         .eq("id", orgId)
         .maybeSingle();
       if (!data) return;
@@ -91,12 +105,18 @@ function OnboardingWizard() {
       setName(data.name || "");
       setMission(data.mission || "");
       setBudget(data.annual_budget ? String(data.annual_budget) : "");
+      setStage(data.stage || "");
       if (data.values) {
         try {
           const parsed = JSON.parse(data.values);
           if (Array.isArray(parsed)) setValues(parsed.map(String));
         } catch {
-          setValues(data.values.split(/[,\n]/).map((s) => s.trim()).filter(Boolean));
+          setValues(
+            data.values
+              .split(/[,\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+          );
         }
       }
     })();
@@ -118,13 +138,21 @@ function OnboardingWizard() {
   async function skipAll() {
     if (!orgId) return;
     if (!confirm("Skip the setup wizard? You can edit everything later.")) return;
-    await supabase.from("organizations").update({ onboarded_at: new Date().toISOString() }).eq("id", orgId);
+    await supabase
+      .from("organizations")
+      .update({ onboarded_at: new Date().toISOString() })
+      .eq("id", orgId);
     navigate({ to: "/dashboard" });
   }
 
   async function loadDemo() {
     if (!orgId) return;
-    if (!confirm("Load the 'Riverside Youth Arts' sample organization? This populates your current workspace with demo data so you can explore every feature.")) return;
+    if (
+      !confirm(
+        "Load the 'Riverside Youth Arts' sample organization? This populates your current workspace with demo data so you can explore every feature.",
+      )
+    )
+      return;
     setSaving(true);
     try {
       await seedSampleData(orgId);
@@ -135,7 +163,6 @@ function OnboardingWizard() {
       setSaving(false);
     }
   }
-
 
   async function finish() {
     if (!orgId) return;
@@ -149,6 +176,7 @@ function OnboardingWizard() {
           mission,
           annual_budget: budget ? Number(budget) : null,
           values: JSON.stringify(values),
+          stage: stage || null,
           onboarded_at: new Date().toISOString(),
         })
         .eq("id", orgId);
@@ -195,8 +223,7 @@ function OnboardingWizard() {
       // 3. Health check scores saved as a single assessment_responses row
       const scoreEntries = Object.entries(scores);
       if (scoreEntries.length && planId) {
-        const avg =
-          scoreEntries.reduce((a, [, v]) => a + Number(v), 0) / scoreEntries.length;
+        const avg = scoreEntries.reduce((a, [, v]) => a + Number(v), 0) / scoreEntries.length;
         await supabase.from("assessment_responses").insert({
           organization_id: orgId,
           plan_id: planId,
@@ -207,7 +234,6 @@ function OnboardingWizard() {
         });
       }
 
-
       toast.success("Welcome aboard! Your foundation is set.");
       navigate({ to: "/dashboard" });
     } catch (e: any) {
@@ -216,7 +242,6 @@ function OnboardingWizard() {
       setSaving(false);
     }
   }
-
 
   if (orgLoading) {
     return (
@@ -283,9 +308,7 @@ function OnboardingWizard() {
                   {s.label}
                 </span>
                 {i < STEPS.length - 1 && (
-                  <div
-                    className={`flex-1 h-px ${done ? "bg-emerald-500" : "bg-slate-200"}`}
-                  />
+                  <div className={`flex-1 h-px ${done ? "bg-emerald-500" : "bg-slate-200"}`} />
                 )}
               </li>
             );
@@ -319,25 +342,38 @@ function OnboardingWizard() {
                   className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm resize-y"
                 />
               </Field>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Annual budget (USD)">
-                  <input
-                    type="number"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="500000"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-                  />
-                </Field>
-                <Field label="Fiscal year start (MM-DD)">
-                  <input
-                    value={fyStart}
-                    onChange={(e) => setFyStart(e.target.value)}
-                    placeholder="07-01"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-                  />
-                </Field>
-              </div>
+              <Field label="Annual budget (USD)">
+                <input
+                  type="number"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="500000"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                />
+              </Field>
+              <Field label="Where is your organization in its journey?">
+                <div className="space-y-2">
+                  {STAGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStage(opt.value)}
+                      className={`w-full text-left px-3 py-2.5 rounded-lg text-sm border transition-colors ${
+                        stage === opt.value
+                          ? "bg-brand-deep text-white border-brand-deep"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  This shapes which questions and defaults you'll see later — a brand-new
+                  organization won't be penalized for not having history yet. You can change this
+                  anytime in Org Profile.
+                </p>
+              </Field>
             </StepShell>
           )}
 

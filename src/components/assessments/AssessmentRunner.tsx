@@ -8,11 +8,26 @@ import { toast } from "sonner";
 import { AiDraftButton } from "@/components/ai/AiDraftButton";
 import { draftNarrative } from "@/lib/ai/draft.functions";
 import { useServerFn } from "@tanstack/react-start";
+import {
+  type Answer,
+  type Answers,
+  type AnswerStatus,
+  computeScore,
+  isAnswered,
+  normalizeAnswers,
+} from "@/lib/assessments/scoring";
 
 export type AssessmentQuestion = {
   id: string;
   prompt: string;
   helper?: string;
+  /** Only set for questions that need elapsed time/track record a brand-new
+   * org cannot have yet (a year of audits, donor retention, "in the last 12
+   * months" framing) — those default to N/A for new orgs. Every other
+   * question defaults to "projected" for a new org (still answerable as an
+   * intention) and "historical" for an established one; most questions
+   * don't need this hint at all. */
+  newOrgDefault?: "na";
 };
 
 export type AssessmentReference = {
@@ -47,7 +62,8 @@ export function AssessmentRunner({
   const { planId, loading: planLoading } = useCurrentPlan(orgId);
 
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Answers>({});
+  const [orgStage, setOrgStage] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [loadingPrev, setLoadingPrev] = useState(true);
@@ -55,27 +71,39 @@ export function AssessmentRunner({
   const [reflection, setReflection] = useState<string>("");
   const draft = useServerFn(draftNarrative);
 
-  // Load latest saved response (if any) for this org+plan+type.
+  // A new/pre-launch org shouldn't see historical questions defaulted as if
+  // they had a track record — these two stages are "new" for this purpose.
+  const isNewOrg = orgStage === "exploring" || orgStage === "new_launch";
+
+  function defaultStatusFor(question: AssessmentQuestion): AnswerStatus {
+    if (!isNewOrg) return "historical";
+    return question.newOrgDefault === "na" ? "na" : "projected";
+  }
+
+  // Load org stage + latest saved response (if any) for this org+plan+type.
   useEffect(() => {
     if (!orgId || !planId) return;
     let cancelled = false;
     setLoadingPrev(true);
     (async () => {
-      const { data, error } = await supabase
-        .from("assessment_responses")
-        .select("id,responses,completed_at")
-        .eq("organization_id", orgId)
-        .eq("plan_id", planId)
-        .eq("assessment_type", assessmentType)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [{ data: org }, { data, error }] = await Promise.all([
+        supabase.from("organizations").select("stage").eq("id", orgId).maybeSingle(),
+        supabase
+          .from("assessment_responses")
+          .select("id,responses,completed_at")
+          .eq("organization_id", orgId)
+          .eq("plan_id", planId)
+          .eq("assessment_type", assessmentType)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
       if (cancelled) return;
+      if (org) setOrgStage(org.stage);
       if (error) toast.error(error.message);
       if (data) {
         setExistingId(data.id);
-        const prev = (data.responses as Record<string, number>) ?? {};
-        setAnswers(prev);
+        setAnswers(normalizeAnswers(data.responses as Record<string, unknown>));
         if (data.completed_at) setDone(true);
       }
       setLoadingPrev(false);
@@ -86,18 +114,42 @@ export function AssessmentRunner({
   }, [orgId, planId, assessmentType]);
 
   const total = config.questions.length;
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = config.questions.filter((qq) => isAnswered(answers[qq.id])).length;
   const pct = Math.round((answeredCount / total) * 100);
 
   const q = config.questions[step];
-  const value = q ? answers[q.id] : undefined;
+  const current: Answer = q
+    ? (answers[q.id] ?? { status: defaultStatusFor(q), value: null })
+    : { status: "historical", value: null };
 
-  const score = total
-    ? Math.round(
-        (Object.values(answers).reduce((a, b) => a + b, 0) / (total * 5)) * 100,
-      )
-    : 0;
+  const score = computeScore(answers);
   const rec = config.recommendations.find((r) => score >= r.score[0] && score <= r.score[1]);
+
+  function setAnswer(id: string, next: Answer) {
+    const nextAnswers = { ...answers, [id]: next };
+    setAnswers(nextAnswers);
+    void (async () => {
+      if (!orgId || !planId) return;
+      const { data: u } = await supabase.auth.getUser();
+      const payload = {
+        organization_id: orgId,
+        plan_id: planId,
+        assessment_type: assessmentType,
+        responses: nextAnswers,
+        created_by: u.user?.id ?? null,
+      };
+      if (existingId) {
+        await supabase.from("assessment_responses").update(payload).eq("id", existingId);
+      } else {
+        const { data } = await supabase
+          .from("assessment_responses")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (data) setExistingId(data.id);
+      }
+    })();
+  }
 
   async function persist(complete: boolean) {
     if (!orgId || !planId) return;
@@ -109,7 +161,7 @@ export function AssessmentRunner({
       assessment_type: assessmentType,
       responses: answers,
       score: complete ? score : null,
-      maturity_level: complete ? rec?.maturity ?? null : null,
+      maturity_level: complete ? (rec?.maturity ?? null) : null,
       completed_at: complete ? new Date().toISOString() : null,
       created_by: u.user?.id ?? null,
     };
@@ -206,7 +258,8 @@ export function AssessmentRunner({
                     {r.title}
                   </a>
                   <p className="text-[11px] uppercase tracking-widest text-slate-400 mt-1">
-                    {r.source}{r.year ? ` · ${r.year}` : ""}
+                    {r.source}
+                    {r.year ? ` · ${r.year}` : ""}
                   </p>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">{r.insight}</p>
                 </li>
@@ -214,8 +267,6 @@ export function AssessmentRunner({
             </ul>
           </SectionCard>
         )}
-
-
 
         <SectionCard
           title="Leadership reflection"
@@ -235,7 +286,7 @@ export function AssessmentRunner({
                       maturity: rec?.maturity ?? "—",
                       answers: config.questions.map((qq) => ({
                         prompt: qq.prompt,
-                        value: answers[qq.id] ?? 0,
+                        value: answers[qq.id]?.status === "na" ? 0 : (answers[qq.id]?.value ?? 0),
                       })),
                     },
                   },
@@ -253,7 +304,8 @@ export function AssessmentRunner({
           ) : (
             <p className="text-sm text-slate-500 italic flex items-center gap-2">
               <Sparkles className="size-3.5 text-brand-primary" />
-              Generate a two-paragraph reflection on what's working and the most important 90-day move.
+              Generate a two-paragraph reflection on what's working and the most important 90-day
+              move.
             </p>
           )}
         </SectionCard>
@@ -262,15 +314,31 @@ export function AssessmentRunner({
 
         <SectionCard title="Your answers">
           <ul className="divide-y divide-slate-100">
-            {config.questions.map((qq, i) => (
-              <li key={qq.id} className="py-3 flex items-start gap-4">
-                <span className="text-xs font-bold text-slate-400 w-6 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-                <p className="text-sm text-slate-700 flex-1">{qq.prompt}</p>
-                <span className="text-sm font-medium text-brand-primary tabular-nums w-8 text-right">
-                  {answers[qq.id] ?? "–"}/5
-                </span>
-              </li>
-            ))}
+            {config.questions.map((qq, i) => {
+              const a = answers[qq.id];
+              return (
+                <li key={qq.id} className="py-3 flex items-start gap-4">
+                  <span className="text-xs font-bold text-slate-400 w-6 tabular-nums">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p className="text-sm text-slate-700 flex-1">{qq.prompt}</p>
+                  {a?.status === "na" ? (
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                      N/A
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-brand-primary tabular-nums w-8 text-right">
+                      {a?.value ?? "–"}/5
+                    </span>
+                  )}
+                  {a?.status === "projected" && (
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-brand-accent">
+                      Planned
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <button
             onClick={retake}
@@ -301,7 +369,10 @@ export function AssessmentRunner({
           <span className="font-medium text-slate-500">{pct}% complete</span>
         </div>
         <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full bg-brand-accent rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div
+            className="h-full bg-brand-accent rounded-full transition-all"
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
 
@@ -312,51 +383,58 @@ export function AssessmentRunner({
         <h2 className="text-3xl font-serif italic mt-3 leading-tight max-w-2xl">{q.prompt}</h2>
         {q.helper && <p className="text-sm text-slate-500 mt-3 max-w-xl">{q.helper}</p>}
 
-        <div className="mt-10">
-          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-            <span>{config.scaleLabel?.[0] ?? "Strongly disagree"}</span>
-            <span>{config.scaleLabel?.[1] ?? "Strongly agree"}</span>
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => {
-                  const next = { ...answers, [q.id]: n };
-                  setAnswers(next);
-                  // fire-and-forget autosave
-                  void (async () => {
-                    if (!orgId || !planId) return;
-                    const { data: u } = await supabase.auth.getUser();
-                    const payload = {
-                      organization_id: orgId,
-                      plan_id: planId,
-                      assessment_type: assessmentType,
-                      responses: next,
-                      created_by: u.user?.id ?? null,
-                    };
-                    if (existingId) {
-                      await supabase.from("assessment_responses").update(payload).eq("id", existingId);
-                    } else {
-                      const { data } = await supabase
-                        .from("assessment_responses")
-                        .insert(payload)
-                        .select("id")
-                        .single();
-                      if (data) setExistingId(data.id);
-                    }
-                  })();
-                }}
-                className={`py-6 rounded-xl border text-2xl font-serif transition-all ${
-                  value === n
-                    ? "bg-brand-deep text-white border-brand-deep shadow-md"
-                    : "border-slate-200 text-slate-600 hover:border-brand-primary/40 hover:bg-slate-50"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+        <div className="mt-8 flex flex-wrap gap-2">
+          {(
+            [
+              ["historical", "This is true today"],
+              ["projected", "This is our plan, not yet true"],
+              ["na", "Not yet applicable — we're a new organization"],
+            ] as [AnswerStatus, string][]
+          ).map(([status, label]) => (
+            <button
+              key={status}
+              onClick={() =>
+                setAnswer(q.id, { status, value: status === "na" ? null : current.value })
+              }
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                current.status === status
+                  ? "bg-brand-deep text-white border-brand-deep"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary/40"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6">
+          {current.status === "na" ? (
+            <p className="text-sm text-slate-500 italic bg-slate-50 border border-slate-200 rounded-xl px-4 py-6 text-center">
+              Marked not yet applicable — this won't count against your score.
+            </p>
+          ) : (
+            <>
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">
+                <span>{config.scaleLabel?.[0] ?? "Strongly disagree"}</span>
+                <span>{config.scaleLabel?.[1] ?? "Strongly agree"}</span>
+              </div>
+              <div className="grid grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setAnswer(q.id, { status: current.status, value: n })}
+                    className={`py-6 rounded-xl border text-2xl font-serif transition-all ${
+                      current.value === n
+                        ? "bg-brand-deep text-white border-brand-deep shadow-md"
+                        : "border-slate-200 text-slate-600 hover:border-brand-primary/40 hover:bg-slate-50"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center justify-between mt-10">
@@ -377,14 +455,42 @@ export function AssessmentRunner({
 }
 
 export function makeAssessment(
-  override: Partial<AssessmentConfig> & Pick<AssessmentConfig, "title" | "subtitle" | "framework" | "questions">,
+  override: Partial<AssessmentConfig> &
+    Pick<AssessmentConfig, "title" | "subtitle" | "framework" | "questions">,
 ): AssessmentConfig {
   return {
     durationMin: 8,
     recommendations: [
-      { score: [0, 40], maturity: "Emerging", tone: "You're in early stages. Focus on building foundations.", advice: ["Document current state", "Identify top 3 gaps", "Set a 90-day improvement target"] },
-      { score: [41, 70], maturity: "Developing", tone: "Real structure is in place but key gaps remain.", advice: ["Tighten weakest dimension", "Add one board-level metric", "Schedule a quarterly review"] },
-      { score: [71, 100], maturity: "Strong", tone: "You're operating with discipline and clarity.", advice: ["Mentor peer organizations", "Stretch to a longer horizon", "Codify your playbook"] },
+      {
+        score: [0, 40],
+        maturity: "Emerging",
+        tone: "You're in early stages. Focus on building foundations.",
+        advice: [
+          "Document current state",
+          "Identify top 3 gaps",
+          "Set a 90-day improvement target",
+        ],
+      },
+      {
+        score: [41, 70],
+        maturity: "Developing",
+        tone: "Real structure is in place but key gaps remain.",
+        advice: [
+          "Tighten weakest dimension",
+          "Add one board-level metric",
+          "Schedule a quarterly review",
+        ],
+      },
+      {
+        score: [71, 100],
+        maturity: "Strong",
+        tone: "You're operating with discipline and clarity.",
+        advice: [
+          "Mentor peer organizations",
+          "Stretch to a longer horizon",
+          "Codify your playbook",
+        ],
+      },
     ],
     references: [],
     ...override,

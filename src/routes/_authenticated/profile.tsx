@@ -11,6 +11,17 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
+const STAGE_OPTIONS = [
+  { value: "exploring", label: "Exploring or planning a new nonprofit" },
+  { value: "new_launch", label: "Recently launched, building our foundation" },
+  { value: "early_stage", label: "Operating, but still early-stage" },
+  { value: "established", label: "Established organization" },
+  {
+    value: "established_transforming",
+    label: "Established, preparing for significant growth or transformation",
+  },
+] as const;
+
 type OrgRow = {
   id?: string;
   name: string;
@@ -23,6 +34,11 @@ type OrgRow = {
   geographic_area: string;
   beneficiaries: string;
   long_term_goals: string;
+  stage: string;
+  ein: string;
+  tax_status: string;
+  fiscal_sponsor_name: string;
+  year_founded: number | "";
 };
 
 function ProfilePage() {
@@ -38,6 +54,11 @@ function ProfilePage() {
     geographic_area: ORG.geo,
     beneficiaries: ORG.beneficiaries,
     long_term_goals: ORG.longTermGoals.join("\n"),
+    stage: "",
+    ein: "",
+    tax_status: "",
+    fiscal_sponsor_name: "",
+    year_founded: "",
   });
   const [saving, setSaving] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -74,6 +95,11 @@ function ProfilePage() {
         geographic_area: org.geographic_area ?? "",
         beneficiaries: org.beneficiaries ?? "",
         long_term_goals: org.long_term_goals ?? "",
+        stage: org.stage ?? "",
+        ein: org.ein ?? "",
+        tax_status: org.tax_status ?? "",
+        fiscal_sponsor_name: org.fiscal_sponsor_name ?? "",
+        year_founded: org.year_founded ?? "",
       });
     })();
   }, []);
@@ -96,6 +122,11 @@ function ProfilePage() {
         geographic_area: form.geographic_area || null,
         beneficiaries: form.beneficiaries || null,
         long_term_goals: form.long_term_goals || null,
+        stage: form.stage || null,
+        ein: form.ein || null,
+        tax_status: form.tax_status || null,
+        fiscal_sponsor_name: form.fiscal_sponsor_name || null,
+        year_founded: form.year_founded === "" ? null : Number(form.year_founded),
       };
       if (orgId) {
         const { error } = await supabase.from("organizations").update(payload).eq("id", orgId);
@@ -197,6 +228,36 @@ function ProfilePage() {
 
         <SectionCard title="Direction" subtitle="3–5 year goals">
           {field("Long-term goals (one per line)", "long_term_goals", "textarea")}
+        </SectionCard>
+
+        <SectionCard
+          title="Legal & Registration"
+          subtitle="Drives which assessment questions and defaults apply"
+          className="lg:col-span-3"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Organizational stage
+              </span>
+              <select
+                value={form.stage}
+                onChange={(e) => setForm({ ...form, stage: e.target.value })}
+                className="mt-2 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary"
+              >
+                <option value="">Not set</option>
+                {STAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {field("Year founded", "year_founded", "number")}
+            {field("EIN", "ein")}
+            {field("Tax status", "tax_status")}
+            {field("Fiscal sponsor (if applicable)", "fiscal_sponsor_name")}
+          </div>
         </SectionCard>
 
         <SectionCard

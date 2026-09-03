@@ -1385,51 +1385,66 @@ export type Database = {
           beneficiaries: string | null
           created_at: string
           created_by: string | null
+          ein: string | null
+          fiscal_sponsor_name: string | null
           geographic_area: string | null
           id: string
           long_term_goals: string | null
           mission: string | null
           name: string
           onboarded_at: string | null
+          stage: string | null
           staff_count: number | null
+          tax_status: string | null
           updated_at: string
           values: string | null
           vision: string | null
           volunteer_count: number | null
+          year_founded: number | null
         }
         Insert: {
           annual_budget?: number | null
           beneficiaries?: string | null
           created_at?: string
           created_by?: string | null
+          ein?: string | null
+          fiscal_sponsor_name?: string | null
           geographic_area?: string | null
           id?: string
           long_term_goals?: string | null
           mission?: string | null
           name: string
           onboarded_at?: string | null
+          stage?: string | null
           staff_count?: number | null
+          tax_status?: string | null
           updated_at?: string
           values?: string | null
           vision?: string | null
           volunteer_count?: number | null
+          year_founded?: number | null
         }
         Update: {
           annual_budget?: number | null
           beneficiaries?: string | null
           created_at?: string
           created_by?: string | null
+          ein?: string | null
+          fiscal_sponsor_name?: string | null
           geographic_area?: string | null
           id?: string
           long_term_goals?: string | null
           mission?: string | null
           name?: string
           onboarded_at?: string | null
+          stage?: string | null
           staff_count?: number | null
+          tax_status?: string | null
           updated_at?: string
           values?: string | null
           vision?: string | null
           volunteer_count?: number | null
+          year_founded?: number | null
         }
         Relationships: []
       }

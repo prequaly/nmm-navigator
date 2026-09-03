@@ -1,6 +1,15 @@
 import { type AssessmentConfig, type AssessmentReference, makeAssessment } from "@/components/assessments/AssessmentRunner";
 
 const q = (id: string, prompt: string, helper?: string) => ({ id, prompt, helper });
+// For questions that need elapsed time/track record a brand-new org can't
+// have yet — these default to "Not yet applicable" instead of "Planned" for
+// new-stage orgs (see AssessmentRunner's defaultStatusFor).
+const qNA = (id: string, prompt: string, helper?: string) => ({
+  id,
+  prompt,
+  helper,
+  newOrgDefault: "na" as const,
+});
 
 const HEALTH_REFS: AssessmentReference[] = [
   { title: "The Strategy That Will Fix Health Care", source: "Harvard Business Review", year: 2013, url: "https://hbr.org/2013/10/the-strategy-that-will-fix-health-care", insight: "Porter & Lee's value-agenda argument that strategy must drive measurable outcomes, not just activities — the foundation for treating a strategic plan as a live operating contract." },
@@ -83,7 +92,7 @@ export const HEALTH: AssessmentConfig = makeAssessment({
     q("h2", "Every program ties back to a named strategic priority."),
     q("h3", "We track progress against measurable objectives, not just activities."),
     q("h4", "Our board reviews strategic plan progress quarterly."),
-    q("h5", "We've reforecast the plan within the last 12 months."),
+    qNA("h5", "We've reforecast the plan within the last 12 months."),
     q("h6", "Staff at all levels can name our top 3 priorities."),
     q("h7", "We have an annual operating plan derived from the strategic plan."),
   ],
@@ -100,7 +109,7 @@ export const CAPACITY: AssessmentConfig = makeAssessment({
     q("c3", "Our tech stack is integrated, not fragmented."),
     q("c4", "We have a written staff onboarding process."),
     q("c5", "We have a documented succession plan for the Executive Director."),
-    q("c6", "Operational policies are reviewed annually."),
+    qNA("c6", "Operational policies are reviewed annually."),
     q("c7", "We invest at least 3% of our budget in staff development."),
   ],
   references: CAPACITY_REFS,
@@ -111,11 +120,11 @@ export const FINANCIAL: AssessmentConfig = makeAssessment({
   subtitle: "Cash, controls, and runway — the fundamentals of organizational resilience.",
   framework: "Financial",
   questions: [
-    q("f1", "We have 90+ days of cash on hand."),
+    qNA("f1", "We have 90+ days of cash on hand."),
     q("f2", "Monthly financial statements are produced within 15 days of close."),
     q("f3", "The board finance committee meets at least quarterly."),
     q("f4", "We have a documented gift acceptance and reserves policy."),
-    q("f5", "We undergo an annual independent audit or review."),
+    qNA("f5", "We undergo an annual independent audit or review."),
     q("f6", "We track program vs. management vs. fundraising expense ratios."),
     q("f7", "We have separation of duties in financial controls."),
   ],
@@ -131,7 +140,7 @@ export const FUNDRAISING: AssessmentConfig = makeAssessment({
     q("fr2", "Every program has a clear funding need articulated."),
     q("fr3", "We have segmented donor language ready: individual, foundation, corporate."),
     q("fr4", "Our board members each have an annual giving commitment."),
-    q("fr5", "We track donor retention and lapsed-donor recovery rates."),
+    qNA("fr5", "We track donor retention and lapsed-donor recovery rates."),
     q("fr6", "We have a moves-management process for major donors."),
     q("fr7", "Our website has a clear, modern donate page."),
   ],
@@ -147,8 +156,8 @@ export const PROGRAM_IMPACT: AssessmentConfig = makeAssessment({
     q("pi2", "We collect outcome data, not just output counts."),
     q("pi3", "We share impact data with participants and partners."),
     q("pi4", "We use a common evaluation framework across programs."),
-    q("pi5", "We publish an annual impact report."),
-    q("pi6", "We've sunsetted at least one program in the last 3 years based on data."),
+    qNA("pi5", "We publish an annual impact report."),
+    qNA("pi6", "We've sunsetted at least one program in the last 3 years based on data."),
     q("pi7", "Our outcomes are externally benchmarked when possible."),
   ],
   references: PROGRAM_IMPACT_REFS,
@@ -163,8 +172,8 @@ export const GOVERNANCE: AssessmentConfig = makeAssessment({
     q("g2", "We have term limits and rotate the chair."),
     q("g3", "Board composition reflects the community we serve."),
     q("g4", "Each board member has an annual personal giving expectation."),
-    q("g5", "We conduct an annual ED performance review."),
-    q("g6", "We conduct a board self-assessment annually."),
+    qNA("g5", "We conduct an annual ED performance review."),
+    qNA("g6", "We conduct a board self-assessment annually."),
     q("g7", "Onboarding for new members takes less than 60 days."),
   ],
   references: GOVERNANCE_REFS,
@@ -212,7 +221,7 @@ export const IMPACT: AssessmentConfig = makeAssessment({
     q("i3", "We dedicate budget to innovation each year."),
     q("i4", "We can pivot quickly when conditions change."),
     q("i5", "Community members have decision-making power on programs."),
-    q("i6", "We publish financials and outcomes annually."),
+    qNA("i6", "We publish financials and outcomes annually."),
     q("i7", "Partnerships include shared evaluation."),
     q("i8", "We publicly report on what didn't work, not only what did."),
   ],
@@ -245,12 +254,12 @@ export const REVENUE_HHI: AssessmentConfig = makeAssessment({
   questions: [
     q("hh1", "Our largest funder represents less than 25% of revenue."),
     q("hh2", "We have 5+ meaningful revenue sources."),
-    q("hh3", "We have grown earned revenue year over year."),
-    q("hh4", "Individual giving grew faster than expense growth."),
+    qNA("hh3", "We have grown earned revenue year over year."),
+    qNA("hh4", "Individual giving grew faster than expense growth."),
     q("hh5", "We have multi-year commitments from at least 3 funders."),
     q("hh6", "We have a written diversification plan with targets."),
     q("hh7", "We model revenue scenarios annually."),
-    q("hh8", "We could weather the loss of our largest funder for 12 months."),
+    qNA("hh8", "We could weather the loss of our largest funder for 12 months."),
   ],
   references: REVENUE_HHI_REFS,
 });
@@ -263,7 +272,7 @@ export const DEI: AssessmentConfig = makeAssessment({
   questions: [
     q("d1", "Our board reflects the demographics of the community we serve."),
     q("d2", "Our staff reflects the demographics of the community we serve."),
-    q("d3", "We collect and review pay-equity data at least annually."),
+    qNA("d3", "We collect and review pay-equity data at least annually."),
     q("d4", "We have a written equity statement that is referenced in decisions, not just on the website."),
     q("d5", "People closest to the problem we're solving have decision-making power, not just an advisory role."),
     q("d6", "We measure programmatic outcomes disaggregated by race, gender, and income."),
