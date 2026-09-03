@@ -9,7 +9,7 @@ import {
   parseValues,
   sumYearly,
 } from "@/lib/exports/data";
-import { PLAN_SECTIONS, IMPACT_LENSES } from "@/lib/plan/sections";
+import { PLAN_SECTIONS, IMPACT_LENSES, FOURRS_LENSES } from "@/lib/plan/sections";
 
 export const Route = createFileRoute("/_authenticated/report/print/strategic-plan")({
   head: () => ({ meta: [{ title: "Strategic Plan — Print" }] }),
@@ -19,7 +19,11 @@ export const Route = createFileRoute("/_authenticated/report/print/strategic-pla
 // Render an editable narrative body (may have **Bold:** sub-heads) as HTML paragraphs.
 function Narrative({ body }: { body: string }) {
   if (!body?.trim()) {
-    return <p className="text-slate-400 italic text-sm">Not yet drafted — visit Plan Narrative to draft this section.</p>;
+    return (
+      <p className="text-slate-400 italic text-sm">
+        Not yet drafted — visit Plan Narrative to draft this section.
+      </p>
+    );
   }
   const blocks = body.replace(/\r\n/g, "\n").split(/\n{2,}/);
   return (
@@ -121,18 +125,31 @@ function PrintStrategicPlan() {
         <Narrative body={get("current_state")} />
       </PrintSection>
 
-      <PrintSection title="IV. Strategic Issues & IMPACT Framework Approach">
+      <PrintSection title="IV. Strategic Issues & Framework Approach">
         <Narrative body={get("strategic_issues")} />
-        <div className="mt-4">
-          <h4 className="font-semibold text-slate-900 text-sm mb-1">The IMPACT Framework</h4>
-          <ul className="text-sm text-slate-700 space-y-0.5">
-            {IMPACT_LENSES.map((l) => (
-              <li key={l.key} className="flex items-baseline gap-2">
-                <span className="size-1.5 bg-brand-deep rounded-full inline-block" />
-                {l.label}
-              </li>
-            ))}
-          </ul>
+        <div className="mt-4 grid grid-cols-2 gap-6">
+          <div>
+            <h4 className="font-semibold text-slate-900 text-sm mb-1">The IMPACT Framework</h4>
+            <ul className="text-sm text-slate-700 space-y-0.5">
+              {IMPACT_LENSES.map((l) => (
+                <li key={l.key} className="flex items-baseline gap-2">
+                  <span className="size-1.5 bg-brand-deep rounded-full inline-block" />
+                  {l.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold text-slate-900 text-sm mb-1">The 4Rs Framework</h4>
+            <ul className="text-sm text-slate-700 space-y-0.5">
+              {FOURRS_LENSES.map((l) => (
+                <li key={l.key} className="flex items-baseline gap-2">
+                  <span className="size-1.5 bg-violet-600 rounded-full inline-block" />
+                  {l.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </PrintSection>
 
@@ -141,12 +158,16 @@ function PrintStrategicPlan() {
           <p className="text-slate-400 italic text-sm">No strategic pillars defined yet.</p>
         ) : (
           <div className="space-y-3">
-            {(pillars as Array<{ id: string; name: string; description: string | null }>).map((p) => (
-              <div key={p.id} className="avoid-break">
-                <h4 className="font-semibold text-slate-900 text-sm">{p.name}</h4>
-                {p.description && <p className="text-sm text-slate-700 mt-0.5">{p.description}</p>}
-              </div>
-            ))}
+            {(pillars as Array<{ id: string; name: string; description: string | null }>).map(
+              (p) => (
+                <div key={p.id} className="avoid-break">
+                  <h4 className="font-semibold text-slate-900 text-sm">{p.name}</h4>
+                  {p.description && (
+                    <p className="text-sm text-slate-700 mt-0.5">{p.description}</p>
+                  )}
+                </div>
+              ),
+            )}
           </div>
         )}
         {okrs.length > 0 && (
@@ -162,7 +183,15 @@ function PrintStrategicPlan() {
                 </tr>
               </thead>
               <tbody>
-                {(okrs as Array<{ id: string; objective: string; quarter: string | null; owner: string | null; status: string }>).map((o) => (
+                {(
+                  okrs as Array<{
+                    id: string;
+                    objective: string;
+                    quarter: string | null;
+                    owner: string | null;
+                    status: string;
+                  }>
+                ).map((o) => (
                   <tr key={o.id} className="border-b border-slate-100">
                     <td className="py-1.5">{o.objective}</td>
                     <td>{o.quarter || "—"}</td>
@@ -217,7 +246,16 @@ function PrintStrategicPlan() {
               </tr>
             </thead>
             <tbody>
-              {(kpis as Array<{ id: string; name: string; unit: string | null; baseline: number | null; current_value: number | null; target: number | null }>).map((k) => (
+              {(
+                kpis as Array<{
+                  id: string;
+                  name: string;
+                  unit: string | null;
+                  baseline: number | null;
+                  current_value: number | null;
+                  target: number | null;
+                }>
+              ).map((k) => (
                 <tr key={k.id} className="border-b border-slate-100">
                   <td className="py-1.5">
                     {k.name}
@@ -247,7 +285,16 @@ function PrintStrategicPlan() {
               </tr>
             </thead>
             <tbody>
-              {(risks as Array<{ id: string; title: string; category: string | null; likelihood: number | null; impact: number | null; mitigation: string | null }>).map((r) => (
+              {(
+                risks as Array<{
+                  id: string;
+                  title: string;
+                  category: string | null;
+                  likelihood: number | null;
+                  impact: number | null;
+                  mitigation: string | null;
+                }>
+              ).map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
                   <td className="py-1.5">{r.title}</td>
                   <td>{r.category || "—"}</td>
@@ -280,7 +327,16 @@ function PrintStrategicPlan() {
               </tr>
             </thead>
             <tbody>
-              {(roadmap as Array<{ id: string; title: string; start_date: string | null; end_date: string | null; owner: string | null; status: string }>).map((r) => (
+              {(
+                roadmap as Array<{
+                  id: string;
+                  title: string;
+                  start_date: string | null;
+                  end_date: string | null;
+                  owner: string | null;
+                  status: string;
+                }>
+              ).map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
                   <td className="py-1.5">{r.title}</td>
                   <td>{formatDate(r.start_date)}</td>

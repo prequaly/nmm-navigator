@@ -1,16 +1,12 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  AppShell,
-  SectionCard,
-  PrimaryButton,
-  GhostButton,
-} from "@/components/app-shell/AppShell";
+import { AppShell, SectionCard, PrimaryButton, GhostButton } from "@/components/app-shell/AppShell";
 import { GripVertical, Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
 import { toast } from "sonner";
+import { IMPACT_LENSES, FOURRS_LENSES } from "@/lib/plan/sections";
 
 type Pillar = {
   id: string;
@@ -19,6 +15,11 @@ type Pillar = {
   owner: string | null;
   color: string | null;
   sort_order: number;
+  impact_lenses: string[];
+  fourrs_dimensions: string[];
+  priority_level: string | null;
+  timeline_start: string | null;
+  timeline_end: string | null;
 };
 
 const PALETTE = ["#3B82F6", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#0F172A"];
@@ -40,7 +41,9 @@ function PrioritiesPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("strategic_pillars")
-      .select("id,name,description,owner,color,sort_order")
+      .select(
+        "id,name,description,owner,color,sort_order,impact_lenses,fourrs_dimensions,priority_level,timeline_start,timeline_end",
+      )
       .eq("organization_id", orgId)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
@@ -116,13 +119,53 @@ function PrioritiesPage() {
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900">{p.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-slate-900">{p.name}</p>
+                    {p.priority_level && (
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                          p.priority_level === "high"
+                            ? "bg-rose-100 text-rose-700"
+                            : p.priority_level === "medium"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {p.priority_level}
+                      </span>
+                    )}
+                    {(p.timeline_start || p.timeline_end) && (
+                      <span className="text-[10px] text-slate-400">
+                        {p.timeline_start ?? "?"} → {p.timeline_end ?? "?"}
+                      </span>
+                    )}
+                  </div>
                   {(p.owner || p.description) && (
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
                       {p.owner ? `${p.owner}` : ""}
                       {p.owner && p.description ? " · " : ""}
                       {p.description ?? ""}
                     </p>
+                  )}
+                  {(p.impact_lenses.length > 0 || p.fourrs_dimensions.length > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {p.impact_lenses.map((k) => (
+                        <span
+                          key={k}
+                          className="text-[9px] font-medium bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded"
+                        >
+                          {IMPACT_LENSES.find((l) => l.key === k)?.label ?? k}
+                        </span>
+                      ))}
+                      {p.fourrs_dimensions.map((k) => (
+                        <span
+                          key={k}
+                          className="text-[9px] font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded"
+                        >
+                          {FOURRS_LENSES.find((l) => l.key === k)?.label ?? k}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <button
@@ -160,7 +203,16 @@ function NewPillarForm({
   const [description, setDescription] = useState("");
   const [owner, setOwner] = useState("");
   const [color, setColor] = useState(defaultColor);
+  const [priorityLevel, setPriorityLevel] = useState("medium");
+  const [timelineStart, setTimelineStart] = useState("");
+  const [timelineEnd, setTimelineEnd] = useState("");
+  const [impactLenses, setImpactLenses] = useState<string[]>([]);
+  const [fourRsDims, setFourRsDims] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  function toggle(list: string[], setList: (v: string[]) => void, key: string) {
+    setList(list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -174,6 +226,11 @@ function NewPillarForm({
       owner: owner.trim() || null,
       color,
       sort_order: nextSort,
+      priority_level: priorityLevel,
+      timeline_start: timelineStart || null,
+      timeline_end: timelineEnd || null,
+      impact_lenses: impactLenses,
+      fourrs_dimensions: fourRsDims,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -227,8 +284,78 @@ function NewPillarForm({
             ))}
           </div>
         </label>
+        <label className="text-xs">
+          <span className="block text-slate-500 mb-1">Priority level</span>
+          <select
+            value={priorityLevel}
+            onChange={(e) => setPriorityLevel(e.target.value)}
+            className="w-full text-sm border border-slate-200 rounded-md px-3 py-2"
+          >
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label className="text-xs">
+          <span className="block text-slate-500 mb-1">Timeline start</span>
+          <input
+            type="date"
+            value={timelineStart}
+            onChange={(e) => setTimelineStart(e.target.value)}
+            className="w-full text-sm border border-slate-200 rounded-md px-3 py-2"
+          />
+        </label>
+        <label className="text-xs">
+          <span className="block text-slate-500 mb-1">Timeline end</span>
+          <input
+            type="date"
+            value={timelineEnd}
+            onChange={(e) => setTimelineEnd(e.target.value)}
+            className="w-full text-sm border border-slate-200 rounded-md px-3 py-2"
+          />
+        </label>
+        <div className="md:col-span-3 text-xs">
+          <span className="block text-slate-500 mb-1">IMPACT alignment</span>
+          <div className="flex flex-wrap gap-1.5">
+            {IMPACT_LENSES.map((l) => (
+              <button
+                key={l.key}
+                type="button"
+                onClick={() => toggle(impactLenses, setImpactLenses, l.key)}
+                className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${
+                  impactLenses.includes(l.key)
+                    ? "bg-brand-primary text-white border-brand-primary"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary/40"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="md:col-span-3 text-xs">
+          <span className="block text-slate-500 mb-1">4Rs alignment</span>
+          <div className="flex flex-wrap gap-1.5">
+            {FOURRS_LENSES.map((l) => (
+              <button
+                key={l.key}
+                type="button"
+                onClick={() => toggle(fourRsDims, setFourRsDims, l.key)}
+                className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${
+                  fourRsDims.includes(l.key)
+                    ? "bg-violet-600 text-white border-violet-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-violet-400"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="md:col-span-6 flex justify-end gap-2 pt-2">
-          <GhostButton type="button" onClick={onCancel}>Cancel</GhostButton>
+          <GhostButton type="button" onClick={onCancel}>
+            Cancel
+          </GhostButton>
           <PrimaryButton type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save priority"}
           </PrimaryButton>
