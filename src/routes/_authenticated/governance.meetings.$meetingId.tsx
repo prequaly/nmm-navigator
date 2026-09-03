@@ -740,6 +740,7 @@ function SummaryCard({ meeting, onSaved }: { meeting: Meeting; onSaved: () => vo
   }
 
   const draft = useServerFn(draftNarrative);
+  const isDirty = summary !== (meeting.summary ?? "");
   return (
     <SectionCard
       title="Summary"
@@ -767,8 +768,11 @@ function SummaryCard({ meeting, onSaved }: { meeting: Meeting; onSaved: () => vo
         className="w-full text-sm border border-slate-200 rounded-md px-3 py-2"
         placeholder="One paragraph the board chair could read in 30 seconds."
       />
-      <div className="flex justify-end mt-2">
-        <PrimaryButton onClick={save} disabled={saving}>
+      <div className="flex justify-end gap-2 mt-2">
+        {isDirty && (
+          <GhostButton onClick={() => setSummary(meeting.summary ?? "")}>Discard</GhostButton>
+        )}
+        <PrimaryButton onClick={save} disabled={saving || !isDirty}>
           {saving ? "Saving…" : "Save summary"}
         </PrimaryButton>
       </div>
