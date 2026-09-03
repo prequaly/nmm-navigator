@@ -534,6 +534,7 @@ export type Database = {
         Row: {
           base_year: number
           created_at: string
+          current_reserve_balance: number
           fte_loaded_cost: number
           id: string
           inflation_rate: number
@@ -547,6 +548,7 @@ export type Database = {
         Insert: {
           base_year: number
           created_at?: string
+          current_reserve_balance?: number
           fte_loaded_cost?: number
           id?: string
           inflation_rate?: number
@@ -560,6 +562,7 @@ export type Database = {
         Update: {
           base_year?: number
           created_at?: string
+          current_reserve_balance?: number
           fte_loaded_cost?: number
           id?: string
           inflation_rate?: number
@@ -2294,6 +2297,276 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "touchpoints_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stakeholders: {
+        Row: {
+          created_at: string
+          id: string
+          influence: number
+          interest: number
+          name: string
+          organization_id: string
+          owner: string | null
+          relationship: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          influence: number
+          interest: number
+          name: string
+          organization_id: string
+          owner?: string | null
+          relationship?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          influence?: number
+          interest?: number
+          name?: string
+          organization_id?: string
+          owner?: string | null
+          relationship?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stakeholders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_scenarios: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          organization_id: string
+          plan_id: string
+          shock_type: string
+          shock_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          organization_id: string
+          plan_id: string
+          shock_type: string
+          shock_value?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          plan_id?: string
+          shock_type?: string
+          shock_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_scenarios_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_scenarios_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asks: {
+        Row: {
+          amount: number
+          audience: string | null
+          board_language: string | null
+          created_at: string
+          donor_language: string | null
+          grant_language: string | null
+          id: string
+          organization_id: string
+          pillar_id: string | null
+          secured_amount: number
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          audience?: string | null
+          board_language?: string | null
+          created_at?: string
+          donor_language?: string | null
+          grant_language?: string | null
+          id?: string
+          organization_id: string
+          pillar_id?: string | null
+          secured_amount?: number
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          audience?: string | null
+          board_language?: string | null
+          created_at?: string
+          donor_language?: string | null
+          grant_language?: string | null
+          id?: string
+          organization_id?: string
+          pillar_id?: string | null
+          secured_amount?: number
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_pillar_id_fkey"
+            columns: ["pillar_id"]
+            isOneToOne: false
+            referencedRelation: "strategic_pillars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      impact_stories: {
+        Row: {
+          age: string | null
+          captured_on: string | null
+          consent: string
+          created_at: string
+          id: string
+          organization_id: string
+          outcome: string | null
+          program: string | null
+          quote: string | null
+          subject_name: string
+          tags: string[]
+          updated_at: string
+          uses: string[]
+        }
+        Insert: {
+          age?: string | null
+          captured_on?: string | null
+          consent?: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          outcome?: string | null
+          program?: string | null
+          quote?: string | null
+          subject_name: string
+          tags?: string[]
+          updated_at?: string
+          uses?: string[]
+        }
+        Update: {
+          age?: string | null
+          captured_on?: string | null
+          consent?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          outcome?: string | null
+          program?: string | null
+          quote?: string | null
+          subject_name?: string
+          tags?: string[]
+          updated_at?: string
+          uses?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impact_stories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donor_segments: {
+        Row: {
+          color: string | null
+          created_at: string
+          donor_count: number
+          id: string
+          label: string
+          organization_id: string
+          retention_pct: number | null
+          sort_order: number
+          total_amount: number
+          updated_at: string
+          yoy_change_pct: number | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          donor_count?: number
+          id?: string
+          label: string
+          organization_id: string
+          retention_pct?: number | null
+          sort_order?: number
+          total_amount?: number
+          updated_at?: string
+          yoy_change_pct?: number | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          donor_count?: number
+          id?: string
+          label?: string
+          organization_id?: string
+          retention_pct?: number | null
+          sort_order?: number
+          total_amount?: number
+          updated_at?: string
+          yoy_change_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donor_segments_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
