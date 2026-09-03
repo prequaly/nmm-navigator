@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell, SectionCard, PrimaryButton, GhostButton } from "@/components/app-shell/AppShell";
-import { GripVertical, Trash2, Plus } from "lucide-react";
+import { GripVertical, Trash2, Plus, Route as RouteIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
 import { toast } from "sonner";
 import { IMPACT_LENSES, FOURRS_LENSES } from "@/lib/plan/sections";
+import { generateRoadmapForPillar } from "@/lib/plan/roadmap-gen";
 
 type Pillar = {
   id: string;
@@ -62,6 +63,20 @@ function PrioritiesPage() {
     const { error } = await supabase.from("strategic_pillars").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setPillars((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  async function generateRoadmap(pillar: Pillar) {
+    if (!orgId || !planId) return;
+    setGeneratingId(pillar.id);
+    try {
+      const { taskCount } = await generateRoadmapForPillar(orgId, planId, pillar);
+      toast.success(`Roadmap item + ${taskCount} starter tasks added — see Execute → Gantt / Tasks`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate roadmap");
+    } finally {
+      setGeneratingId(null);
+    }
   }
 
   const ready = !orgLoading && !planLoading && orgId && planId;
@@ -168,6 +183,15 @@ function PrioritiesPage() {
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={() => generateRoadmap(p)}
+                  disabled={generatingId === p.id}
+                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-brand-primary disabled:opacity-50"
+                  aria-label="Generate roadmap for this priority"
+                  title="Generate a 90-day roadmap item + starter tasks"
+                >
+                  <RouteIcon className="size-4" />
+                </button>
                 <button
                   onClick={() => remove(p.id)}
                   className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600"
