@@ -30,8 +30,8 @@ export type Extracted990 = {
 export const extract990 = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<Extracted990> => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("Missing GEMINI_API_KEY");
 
     const system =
       "You extract financial data from IRS Form 990 PDFs for nonprofit organizations. " +
@@ -63,46 +63,49 @@ Return a JSON object with EXACTLY this shape:
 
 Return ONLY the JSON object. No prose, no markdown fences.`;
 
+    // Gemini's native generateContent endpoint (not the OpenAI-compatible
+    // shim) for reliable inline PDF attachment support.
     const body = {
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: system },
+      system_instruction: { parts: [{ text: system }] },
+      contents: [
         {
           role: "user",
-          content: [
-            { type: "text", text: userText },
+          parts: [
+            { text: userText },
             {
-              type: "file",
-              file: {
-                filename: data.filename,
-                file_data: `data:application/pdf;base64,${data.fileDataBase64}`,
+              inline_data: {
+                mime_type: "application/pdf",
+                data: data.fileDataBase64,
               },
             },
           ],
         },
       ],
-      response_format: { type: "json_object" },
+      generationConfig: { response_mime_type: "application/json" },
     };
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": key,
-        "X-Lovable-AIG-SDK": "raw-fetch",
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+    );
 
-    if (res.status === 429) throw new Error("Rate limit reached. Please wait a moment and try again.");
-    if (res.status === 402) throw new Error("AI credits exhausted on this workspace. Add credits in Settings → Plans & credits.");
+    if (res.status === 429) throw new Error("Gemini API rate limit reached — wait a minute and try again.");
+    if (res.status === 403) {
+      throw new Error(
+        "Gemini API key was rejected or is out of quota — check the key in Google AI Studio.",
+      );
+    }
     if (!res.ok) {
       const txt = await res.text();
       throw new Error(`AI extraction failed (${res.status}): ${txt.slice(0, 200)}`);
     }
 
     const payload = await res.json();
-    const content: string = payload?.choices?.[0]?.message?.content ?? "{}";
+    const content: string = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
 
     let parsed: any;
     try {

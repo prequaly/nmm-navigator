@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createGeminiProvider } from "@/lib/ai-gateway.server";
 import { z } from "zod";
 
 const Input = z.object({
@@ -116,13 +116,9 @@ export const generateMonthlyReview = createServerFn({ method: "POST" })
       overdueActions: (actionsOpen ?? []).filter((a) => a.due_date && new Date(a.due_date) < new Date()).map((a) => a.title).slice(0, 10),
     };
 
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-    const gateway = createOpenAICompatible({
-      name: "lovable",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      headers: { "Lovable-API-Key": key, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-    });
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("Missing GEMINI_API_KEY");
+    const gateway = createGeminiProvider(key);
 
     const system = `You are an experienced nonprofit strategy consultant writing the monthly strategic review for an Executive Director. Voice: encouraging, knowledgeable, calm, action-oriented. Celebrate progress, name what's slipping, and always end each section with a clear "so what." Plain prose, no preamble, no meta commentary.`;
 
@@ -146,7 +142,7 @@ Return ONLY the markdown, starting with the first heading.`;
 
     try {
       const { text } = await generateText({
-        model: gateway("google/gemini-3-flash-preview"),
+        model: gateway("gemini-flash-latest"),
         system,
         prompt,
       });
@@ -154,8 +150,12 @@ Return ONLY the markdown, starting with the first heading.`;
     } catch (err: unknown) {
       const e = err as { statusCode?: number; status?: number; message?: string };
       const status = e.statusCode ?? e.status;
-      if (status === 429) throw new Error("Rate limit reached. Please try again in a moment.");
-      if (status === 402) throw new Error("AI credits exhausted for this workspace. Add credits in Settings → Plans & credits.");
+      if (status === 429) throw new Error("Gemini API rate limit reached — wait a minute and try again.");
+      if (status === 403) {
+        throw new Error(
+          "Gemini API key was rejected or is out of quota — check the key in Google AI Studio.",
+        );
+      }
       throw new Error(e.message ?? "AI request failed");
     }
   });

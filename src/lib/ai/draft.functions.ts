@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createGeminiProvider } from "@/lib/ai-gateway.server";
 import { z } from "zod";
 
 const Input = z.object({
@@ -34,18 +34,11 @@ const Input = z.object({
 });
 
 function callGateway(system: string, prompt: string) {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("Missing LOVABLE_API_KEY");
-  const gateway = createOpenAICompatible({
-    name: "lovable",
-    baseURL: "https://ai.gateway.lovable.dev/v1",
-    headers: {
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-    },
-  });
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("Missing GEMINI_API_KEY");
+  const gateway = createGeminiProvider(key);
   return generateText({
-    model: gateway("google/gemini-3-flash-preview"),
+    model: gateway("gemini-flash-latest"),
     system,
     prompt,
   });
