@@ -2138,7 +2138,7 @@ export type Database = {
         | "at_risk"
         | "done"
         | "cancelled"
-      app_role: "owner" | "admin" | "editor" | "viewer"
+      app_role: "owner" | "admin" | "staff" | "board_member" | "consultant" | "viewer"
       attendance_status: "invited" | "attended" | "absent" | "excused"
       invite_status: "pending" | "accepted" | "revoked" | "expired"
       comment_entity_type: "pillar" | "kpi" | "risk"
@@ -2309,7 +2309,7 @@ export const Constants = {
         "done",
         "cancelled",
       ],
-      app_role: ["owner", "admin", "editor", "viewer"],
+      app_role: ["owner", "admin", "staff", "board_member", "consultant", "viewer"],
       attendance_status: ["invited", "attended", "absent", "excused"],
       invite_status: ["pending", "accepted", "revoked", "expired"],
       comment_entity_type: ["pillar", "kpi", "risk"],

@@ -14,12 +14,14 @@ export const Route = createFileRoute("/_authenticated/team")({
 });
 
 type AppRole = Database["public"]["Enums"]["app_role"];
-const ASSIGNABLE_ROLES: AppRole[] = ["admin", "editor", "viewer"];
+const ASSIGNABLE_ROLES: AppRole[] = ["admin", "staff", "board_member", "consultant", "viewer"];
 
 const ROLE_HELP: Record<AppRole, string> = {
   owner: "Full control, including billing and ownership",
   admin: "Manage team, plans, and all modules",
-  editor: "Edit plans, budgets, and assessments",
+  staff: "Edit plans, budgets, execution, and assessments",
+  board_member: "Read access to the plan, KPIs, reports, and board materials",
+  consultant: "Can build and edit plan content (priorities, KPIs, risks, assessments) for this organization, without access to its budget or execution data",
   viewer: "Read-only access to all modules",
 };
 

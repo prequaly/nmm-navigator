@@ -1,6 +1,12 @@
 
 -- Roles
-CREATE TYPE public.app_role AS ENUM ('owner', 'admin', 'editor', 'viewer');
+-- 6-role model per NMM Navigator functional requirements (Section 4):
+-- owner/admin = ownership & operational control, staff = general operational editor
+-- (supersedes the earlier "editor" concept), board_member = limited/read-leaning
+-- access to strategic content, consultant = scoped access to orgs that explicitly
+-- authorize them, viewer = read-only. See is_org_editor()/is_org_plan_contributor()
+-- below for how these map to write permissions.
+CREATE TYPE public.app_role AS ENUM ('owner', 'admin', 'staff', 'board_member', 'consultant', 'viewer');
 
 -- Profiles
 CREATE TABLE public.profiles (
@@ -30,6 +36,13 @@ CREATE TABLE public.organizations (
   geographic_area TEXT,
   beneficiaries TEXT,
   long_term_goals TEXT,
+  -- Organizational maturity/identity fields (FR Sections 5, 8, 9) — drive onboarding
+  -- journey, assessment applicability, and New Organization Mode defaults.
+  stage TEXT CHECK (stage IN ('exploring','new_launch','early_stage','established','established_transforming')),
+  ein TEXT,
+  tax_status TEXT,
+  fiscal_sponsor_name TEXT,
+  year_founded INT,
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -78,14 +91,30 @@ AS $$
   );
 $$;
 
+-- Owner or Admin — ownership-level control (org settings, membership management,
+-- deleting the org). Kept as one helper so every policy that needs this check
+-- stays in sync instead of repeating the OR inline.
+CREATE OR REPLACE FUNCTION public.is_org_admin(_org UUID, _user UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.organization_members
+    WHERE organization_id = _org AND user_id = _user AND role IN ('owner','admin')
+  );
+$$;
+
 -- RLS policies
 CREATE POLICY "orgs_member_select" ON public.organizations FOR SELECT TO authenticated
   USING (public.is_org_member(id, auth.uid()));
 CREATE POLICY "orgs_creator_insert" ON public.organizations FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = created_by);
 CREATE POLICY "orgs_owner_update" ON public.organizations FOR UPDATE TO authenticated
-  USING (public.has_org_role(id, auth.uid(), 'owner') OR public.has_org_role(id, auth.uid(), 'admin'))
-  WITH CHECK (public.has_org_role(id, auth.uid(), 'owner') OR public.has_org_role(id, auth.uid(), 'admin'));
+  USING (public.is_org_admin(id, auth.uid()))
+  WITH CHECK (public.is_org_admin(id, auth.uid()));
 CREATE POLICY "orgs_owner_delete" ON public.organizations FOR DELETE TO authenticated
   USING (public.has_org_role(id, auth.uid(), 'owner'));
 
@@ -94,9 +123,9 @@ CREATE POLICY "members_self_select" ON public.organization_members FOR SELECT TO
 CREATE POLICY "members_self_insert" ON public.organization_members FOR INSERT TO authenticated
   WITH CHECK (user_id = auth.uid());
 CREATE POLICY "members_admin_update" ON public.organization_members FOR UPDATE TO authenticated
-  USING (public.has_org_role(organization_id, auth.uid(), 'owner') OR public.has_org_role(organization_id, auth.uid(), 'admin'));
+  USING (public.is_org_admin(organization_id, auth.uid()));
 CREATE POLICY "members_admin_delete" ON public.organization_members FOR DELETE TO authenticated
-  USING (public.has_org_role(organization_id, auth.uid(), 'owner') OR public.has_org_role(organization_id, auth.uid(), 'admin') OR user_id = auth.uid());
+  USING (public.is_org_admin(organization_id, auth.uid()) OR user_id = auth.uid());
 
 -- updated_at trigger
 CREATE OR REPLACE FUNCTION public.tg_set_updated_at()

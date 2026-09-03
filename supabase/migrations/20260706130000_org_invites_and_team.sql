@@ -48,39 +48,24 @@ ALTER TABLE public.organization_invites ENABLE ROW LEVEL SECURITY;
 -- never read this table directly — they go through accept_org_invite().
 CREATE POLICY "invites_admin_select" ON public.organization_invites
 FOR SELECT TO authenticated
-USING (
-  public.has_org_role(organization_id, auth.uid(), 'owner')
-  OR public.has_org_role(organization_id, auth.uid(), 'admin')
-);
+USING (public.is_org_admin(organization_id, auth.uid()));
 
 CREATE POLICY "invites_admin_insert" ON public.organization_invites
 FOR INSERT TO authenticated
 WITH CHECK (
-  (
-    public.has_org_role(organization_id, auth.uid(), 'owner')
-    OR public.has_org_role(organization_id, auth.uid(), 'admin')
-  )
+  public.is_org_admin(organization_id, auth.uid())
   AND invited_by = auth.uid()
   AND status = 'pending'
 );
 
 CREATE POLICY "invites_admin_update" ON public.organization_invites
 FOR UPDATE TO authenticated
-USING (
-  public.has_org_role(organization_id, auth.uid(), 'owner')
-  OR public.has_org_role(organization_id, auth.uid(), 'admin')
-)
-WITH CHECK (
-  public.has_org_role(organization_id, auth.uid(), 'owner')
-  OR public.has_org_role(organization_id, auth.uid(), 'admin')
-);
+USING (public.is_org_admin(organization_id, auth.uid()))
+WITH CHECK (public.is_org_admin(organization_id, auth.uid()));
 
 CREATE POLICY "invites_admin_delete" ON public.organization_invites
 FOR DELETE TO authenticated
-USING (
-  public.has_org_role(organization_id, auth.uid(), 'owner')
-  OR public.has_org_role(organization_id, auth.uid(), 'admin')
-);
+USING (public.is_org_admin(organization_id, auth.uid()));
 
 -- ---------------------------------------------------------------------------
 -- 2) Acceptance RPC — the ONLY path that turns an invite into a membership.
