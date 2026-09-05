@@ -4,7 +4,8 @@ import { useState } from "react";
 import { AppShell, SectionCard, PrimaryButton, GhostButton } from "@/components/app-shell/AppShell";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { generateMonthlyReview } from "@/lib/ai/monthly-review.functions";
-import { Sparkles, Loader2, ArrowLeft, Calendar } from "lucide-react";
+import { downloadMonthlyReviewDocx } from "@/lib/exports/monthly-review";
+import { Sparkles, Loader2, ArrowLeft, Calendar, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/report/monthly-review")({
@@ -62,13 +63,27 @@ function renderMarkdown(md: string) {
 }
 
 function MonthlyReview() {
-  const { orgId } = useCurrentOrg();
+  const { orgId, orgs } = useCurrentOrg();
   const runFn = useServerFn(generateMonthlyReview);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [text, setText] = useState<string>("");
   const [monthLabel, setMonthLabel] = useState<string>("");
   const [ctx, setCtx] = useState<any>(null);
   const [month, setMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+
+  const download = async () => {
+    const orgName =
+      orgs.find((o) => o.organizationId === orgId)?.organizationName ?? "Organization";
+    setDownloading(true);
+    try {
+      await downloadMonthlyReviewDocx(orgName, monthLabel, text);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const run = async () => {
     if (!orgId) return;
@@ -92,6 +107,16 @@ function MonthlyReview() {
       actions={
         <>
           <Link to="/dashboard"><GhostButton><ArrowLeft className="size-3.5 inline mr-1" />Command Center</GhostButton></Link>
+          {text && (
+            <GhostButton onClick={download} disabled={downloading}>
+              {downloading ? (
+                <Loader2 className="size-3.5 inline mr-1 animate-spin" />
+              ) : (
+                <FileText className="size-3.5 inline mr-1" />
+              )}
+              Download Word
+            </GhostButton>
+          )}
           <PrimaryButton onClick={run} disabled={loading || !orgId}>
             {loading ? <><Loader2 className="size-3.5 inline mr-1 animate-spin" />Generating…</> : <><Sparkles className="size-3.5 inline mr-1" />Generate review</>}
           </PrimaryButton>

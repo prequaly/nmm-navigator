@@ -1,159 +1,197 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  AppShell,
-  SectionCard,
-  PrimaryButton,
-  GhostButton,
-} from "@/components/app-shell/AppShell";
-import { ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AppShell, SectionCard, EmptyState } from "@/components/app-shell/AppShell";
+import { useCurrentOrg } from "@/hooks/use-current-org";
+import { fetchBenchmarkTrendData } from "@/lib/exports/data";
+import { ArrowUp, ArrowDown, Minus, TrendingUp } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/report/benchmarks")({
-  head: () => ({ meta: [{ title: "Outcomes vs. Benchmarks — NMM Navigator" }] }),
+  head: () => ({ meta: [{ title: "Outcomes Over Time — NMM Navigator" }] }),
   component: BenchmarksPage,
 });
 
-type Metric = {
-  metric: string;
-  category: "Financial" | "People" | "Programs" | "Fundraising" | "Governance";
-  you: number;
-  median: number;
-  topQuartile: number;
-  unit: string;
-  higherIsBetter: boolean;
-  source: string;
+const TITLES: Record<string, string> = {
+  health: "Strategic Planning Health",
+  capacity: "Organizational Capacity",
+  financial: "Financial Health",
+  fundraising: "Fundraising Readiness",
+  "program-impact": "Program Impact",
+  governance: "Board Governance",
+  community: "Community Engagement",
+  digital: "Digital Presence",
+  dei: "DEI / Equity Audit",
+  impact: "IMPACT Framework",
+  "4rs": "4Rs Framework",
 };
 
-const METRICS: Metric[] = [
-  { metric: "Operating reserves (months)", category: "Financial", you: 3.4, median: 4.2, topQuartile: 8.5, unit: "mo", higherIsBetter: true, source: "Candid · arts sector" },
-  { metric: "Revenue concentration (HHI)", category: "Financial", you: 0.38, median: 0.34, topQuartile: 0.22, unit: "HHI", higherIsBetter: false, source: "Lovable peer set" },
-  { metric: "Program ratio", category: "Financial", you: 0.78, median: 0.75, topQuartile: 0.82, unit: "%", higherIsBetter: true, source: "NCCS · arts orgs" },
-  { metric: "Fundraising cost ratio", category: "Fundraising", you: 0.12, median: 0.15, topQuartile: 0.09, unit: "$ raised per $", higherIsBetter: false, source: "Charity Navigator" },
-  { metric: "Donor retention (overall)", category: "Fundraising", you: 0.68, median: 0.45, topQuartile: 0.65, unit: "%", higherIsBetter: true, source: "Fundraising Effectiveness Project" },
-  { metric: "Cost per youth served", category: "Programs", you: 1_092, median: 1_400, topQuartile: 900, unit: "$", higherIsBetter: false, source: "Wallace Foundation · OST" },
-  { metric: "Program-hours per youth", category: "Programs", you: 30, median: 22, topQuartile: 45, unit: "hrs/yr", higherIsBetter: true, source: "Wallace Foundation · OST" },
-  { metric: "Staff turnover", category: "People", you: 0.18, median: 0.27, topQuartile: 0.12, unit: "%", higherIsBetter: false, source: "Nonprofit HR" },
-  { metric: "Board diversity (% BIPOC)", category: "Governance", you: 0.43, median: 0.32, topQuartile: 0.55, unit: "%", higherIsBetter: true, source: "BoardSource Index" },
-  { metric: "Board giving participation", category: "Governance", you: 1.0, median: 0.87, topQuartile: 1.0, unit: "%", higherIsBetter: true, source: "BoardSource Index" },
-];
-
-const CATEGORY_TONE: Record<Metric["category"], string> = {
-  Financial: "bg-emerald-100 text-emerald-700",
-  People: "bg-amber-100 text-amber-700",
-  Programs: "bg-violet-100 text-violet-700",
-  Fundraising: "bg-brand-primary/15 text-brand-primary",
-  Governance: "bg-slate-100 text-slate-700",
+type Row = {
+  assessment_type: string;
+  score: number | null;
+  maturity_level: string | null;
+  completed_at: string | null;
 };
+type Series = { type: string; label: string; points: Array<{ score: number; date: string }> };
 
-function position(m: Metric) {
-  // 0..1: where you are between worst (median*0.5) and topQuartile
-  if (m.higherIsBetter) {
-    if (m.you >= m.topQuartile) return "top";
-    if (m.you >= m.median) return "above-median";
-    return "below-median";
-  } else {
-    if (m.you <= m.topQuartile) return "top";
-    if (m.you <= m.median) return "above-median";
-    return "below-median";
-  }
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function format(v: number, unit: string) {
-  if (unit === "%") return `${Math.round(v * 100)}%`;
-  if (unit === "$") return `$${v.toLocaleString()}`;
-  if (unit === "$ raised per $") return `$${v.toFixed(2)}`;
-  return `${v}${unit ? " " + unit : ""}`;
+function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) {
+    return <div className="text-[10px] text-slate-400 italic">Retake to chart a trend</div>;
+  }
+  const w = 120;
+  const h = 32;
+  const min = Math.min(...points, 0);
+  const max = Math.max(...points, 100);
+  const range = max - min || 1;
+  const coords = points.map((v, i) => {
+    const x = (i / (points.length - 1)) * w;
+    const y = h - ((v - min) / range) * h;
+    return `${x},${y}`;
+  });
+  return (
+    <svg width={w} height={h} className="overflow-visible">
+      <polyline
+        points={coords.join(" ")}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        className="text-brand-primary"
+      />
+      {coords.map((c, i) => {
+        const [x, y] = c.split(",").map(Number);
+        return <circle key={i} cx={x} cy={y} r={2.5} className="fill-brand-primary" />;
+      })}
+    </svg>
+  );
 }
 
 function BenchmarksPage() {
-  const top = METRICS.filter((m) => position(m) === "top").length;
-  const above = METRICS.filter((m) => position(m) === "above-median").length;
-  const below = METRICS.filter((m) => position(m) === "below-median").length;
+  const { orgId, loading } = useCurrentOrg();
+  const [rows, setRows] = useState<Row[] | null>(null);
+
+  useEffect(() => {
+    if (!orgId) return;
+    fetchBenchmarkTrendData(orgId).then(setRows);
+  }, [orgId]);
+
+  if (loading || rows === null) {
+    return (
+      <AppShell title="Outcomes Over Time" subtitle="Loading your assessment history…">
+        <SectionCard padding="p-10">
+          <div className="text-center text-sm text-slate-500">Loading…</div>
+        </SectionCard>
+      </AppShell>
+    );
+  }
+
+  const byType = new Map<string, Row[]>();
+  for (const r of rows) {
+    if (r.score == null || !r.completed_at) continue;
+    if (!byType.has(r.assessment_type)) byType.set(r.assessment_type, []);
+    byType.get(r.assessment_type)!.push(r);
+  }
+
+  const series: Series[] = Array.from(byType.entries()).map(([type, entries]) => ({
+    type,
+    label: TITLES[type] ?? type,
+    points: entries.map((e) => ({ score: e.score!, date: e.completed_at! })),
+  }));
+  series.sort((a, b) => a.label.localeCompare(b.label));
+
+  const withTrend = series.filter((s) => s.points.length >= 2);
+  const improving = withTrend.filter((s) => s.points.at(-1)!.score > s.points.at(-2)!.score).length;
+  const declining = withTrend.filter((s) => s.points.at(-1)!.score < s.points.at(-2)!.score).length;
+  const flat = withTrend.length - improving - declining;
+  const latestScores = series.map((s) => s.points.at(-1)!.score);
+  const avgScore = latestScores.length
+    ? Math.round(latestScores.reduce((a, b) => a + b, 0) / latestScores.length)
+    : null;
+
+  if (series.length === 0) {
+    return (
+      <AppShell
+        title="Outcomes Over Time"
+        subtitle="Track your own progress across every assessment you complete."
+      >
+        <EmptyState
+          title="No completed assessments yet"
+          description="Complete an assessment to set your first baseline. Retake it next quarter and this page will start charting your trend."
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
-      title="Outcomes vs. Benchmarks"
-      subtitle="Your numbers against sector medians and top-quartile performers. Where do you punch above your weight — and where do you have homework?"
-      actions={
-        <>
-          <GhostButton>Change peer set</GhostButton>
-          <PrimaryButton>Export for board</PrimaryButton>
-        </>
-      }
+      title="Outcomes Over Time"
+      subtitle="Your own scores, tracked assessment-by-assessment over time — no external peer set, just your organization's real trajectory."
     >
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-brand-deep text-white rounded-2xl p-5">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">Peer set</span>
-          <p className="text-lg font-serif italic mt-2 leading-tight">Arts orgs · $1–3M · OST youth programs</p>
-          <p className="text-xs text-slate-400 mt-2">n = 142 organizations · Candid + Wallace + NCCS</p>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">
+            Average Score
+          </span>
+          <p className="text-4xl font-serif mt-2 tabular-nums">{avgScore ?? "—"}</p>
+          <p className="text-xs text-slate-400 mt-2">
+            Across {series.length} assessment{series.length === 1 ? "" : "s"} completed
+          </p>
         </div>
-        <Stat label="Top quartile" value={top} tone="emerald" hint="Better than 75% of peers" />
-        <Stat label="Above median" value={above} tone="amber" />
-        <Stat label="Below median" value={below} tone="rose" hint="Priority for next plan cycle" />
+        <Stat label="Improving" value={improving} tone="emerald" hint="Since previous completion" />
+        <Stat label="Declining" value={declining} tone="rose" />
+        <Stat label="Unchanged" value={flat} tone="neutral" />
       </div>
 
-      <SectionCard title="Performance against peers" padding="p-0">
+      <SectionCard title="Your Progress by Assessment" padding="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
               <tr>
-                <th className="text-left p-3">Metric</th>
-                <th className="text-left p-3">Category</th>
-                <th className="text-right p-3">You</th>
-                <th className="text-right p-3">Sector median</th>
-                <th className="text-right p-3">Top quartile</th>
-                <th className="text-left p-3">Position</th>
+                <th className="text-left p-3">Assessment</th>
+                <th className="text-left p-3">Trend</th>
+                <th className="text-right p-3">Latest Score</th>
+                <th className="text-right p-3">Change</th>
+                <th className="text-left p-3">Completions</th>
+                <th className="text-left p-3">Last Completed</th>
               </tr>
             </thead>
             <tbody>
-              {METRICS.map((m) => {
-                const p = position(m);
-                const Icon = p === "top" ? ArrowUp : p === "below-median" ? ArrowDown : Minus;
-                const color = p === "top" ? "text-emerald-600" : p === "below-median" ? "text-rose-600" : "text-amber-600";
-                const label = p === "top" ? "Top quartile" : p === "above-median" ? "Above median" : "Below median";
-
-                // Range bar: place "you" along worst→top scale
-                let yPos: number;
-                if (m.higherIsBetter) {
-                  const min = Math.min(m.median * 0.5, m.you * 0.9);
-                  const max = Math.max(m.topQuartile * 1.05, m.you * 1.05);
-                  yPos = ((m.you - min) / (max - min)) * 100;
-                } else {
-                  const min = Math.min(m.topQuartile * 0.7, m.you * 0.9);
-                  const max = Math.max(m.median * 1.4, m.you * 1.1);
-                  yPos = 100 - ((m.you - min) / (max - min)) * 100;
-                }
-                yPos = Math.max(2, Math.min(98, yPos));
-
+              {series.map((s) => {
+                const latest = s.points.at(-1)!;
+                const prev = s.points.length >= 2 ? s.points.at(-2)! : null;
+                const delta = prev ? latest.score - prev.score : null;
+                const Icon =
+                  delta == null ? Minus : delta > 0 ? ArrowUp : delta < 0 ? ArrowDown : Minus;
+                const color =
+                  delta == null
+                    ? "text-slate-400"
+                    : delta > 0
+                      ? "text-emerald-600"
+                      : delta < 0
+                        ? "text-rose-600"
+                        : "text-slate-500";
                 return (
-                  <tr key={m.metric} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <tr key={s.type} className="border-t border-slate-100 hover:bg-slate-50/60">
+                    <td className="p-3 font-medium text-slate-800">{s.label}</td>
                     <td className="p-3">
-                      <p className="font-medium text-slate-800">{m.metric}</p>
-                      <p className="text-[10px] text-slate-400 italic">{m.source}</p>
+                      <Sparkline points={s.points.map((p) => p.score)} />
                     </td>
-                    <td className="p-3">
-                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${CATEGORY_TONE[m.category]}`}>
-                        {m.category}
+                    <td className="p-3 text-right font-medium tabular-nums text-slate-800">
+                      {latest.score}
+                    </td>
+                    <td className={`p-3 text-right tabular-nums ${color}`}>
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        <Icon className="size-3" />{" "}
+                        {delta == null ? "Baseline" : `${delta > 0 ? "+" : ""}${delta}`}
                       </span>
                     </td>
-                    <td className={`p-3 text-right font-medium tabular-nums ${color}`}>{format(m.you, m.unit)}</td>
-                    <td className="p-3 text-right text-slate-500 tabular-nums">{format(m.median, m.unit)}</td>
-                    <td className="p-3 text-right text-slate-500 tabular-nums">{format(m.topQuartile, m.unit)}</td>
-                    <td className="p-3 w-48">
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1 h-2 bg-slate-100 rounded-full">
-                          <div className="absolute inset-y-0 bg-amber-200 rounded-full" style={{ left: "33%", right: "33%" }} />
-                          <div
-                            className={`absolute top-1/2 -translate-y-1/2 size-3 rounded-full border-2 border-white shadow ${
-                              p === "top" ? "bg-emerald-500" : p === "below-median" ? "bg-rose-500" : "bg-amber-500"
-                            }`}
-                            style={{ left: `${yPos}%`, transform: "translate(-50%, -50%)" }}
-                          />
-                        </div>
-                        <span className={`text-xs flex items-center gap-1 ${color} shrink-0 w-28`}>
-                          <Icon className="size-3" /> {label}
-                        </span>
-                      </div>
-                    </td>
+                    <td className="p-3 text-slate-500">{s.points.length}</td>
+                    <td className="p-3 text-slate-500">{formatDate(latest.date)}</td>
                   </tr>
                 );
               })}
@@ -162,41 +200,29 @@ function BenchmarksPage() {
         </div>
       </SectionCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <SectionCard title="Strengths to lead with">
-          <ul className="space-y-3 text-sm">
-            {METRICS.filter((m) => position(m) === "top").map((m) => (
-              <li key={m.metric} className="flex items-start gap-2">
-                <ArrowUp className="size-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-slate-800">{m.metric}</p>
-                  <p className="text-xs text-slate-500">Use in funder narratives + board materials.</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-
-        <SectionCard title="Gaps to close">
-          <ul className="space-y-3 text-sm">
-            {METRICS.filter((m) => position(m) === "below-median").map((m) => (
-              <li key={m.metric} className="flex items-start gap-2">
-                <ArrowDown className="size-4 text-rose-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-slate-800">{m.metric}</p>
-                  <p className="text-xs text-slate-500">Set 18-month improvement target with a named owner.</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
+      <div className="mt-6 flex items-start gap-2 text-xs text-slate-500">
+        <TrendingUp className="size-3.5 shrink-0 mt-0.5" />
+        Retake any assessment periodically (quarterly is typical) to build a real trend line here —
+        a single completion sets your baseline but can't yet show direction.
       </div>
     </AppShell>
   );
 }
 
-function Stat({ label, value, hint, tone = "neutral" }: { label: string; value: number; hint?: string; tone?: "neutral" | "emerald" | "amber" | "rose" }) {
-  const color = { neutral: "text-brand-deep", emerald: "text-emerald-600", amber: "text-amber-600", rose: "text-rose-600" }[tone];
+function Stat({
+  label,
+  value,
+  hint,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+  tone?: "neutral" | "emerald" | "rose";
+}) {
+  const color = { neutral: "text-brand-deep", emerald: "text-emerald-600", rose: "text-rose-600" }[
+    tone
+  ];
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5">
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
