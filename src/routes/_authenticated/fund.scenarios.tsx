@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
 import { toast } from "sonner";
+import { AiPressureTest } from "@/components/plan/AiPressureTest";
 
 export const Route = createFileRoute("/_authenticated/fund/scenarios")({
   head: () => ({ meta: [{ title: "Scenario Modeling — NMM Navigator" }] }),
@@ -190,6 +191,8 @@ function ScenariosPage() {
           </div>
         </SectionCard>
       )}
+
+      {ready && !showForm && <AiPressureTest orgId={orgId!} planId={planId!} />}
 
       {ready && !showForm && scenarios.length === 0 && (
         <EmptyState

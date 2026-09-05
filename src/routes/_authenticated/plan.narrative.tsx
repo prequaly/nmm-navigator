@@ -80,6 +80,11 @@ function PlanNarrativePage() {
     }
   }
 
+  function discard(key: string) {
+    setDrafts((d) => ({ ...d, [key]: rows[key]?.body ?? "" }));
+    setDirty((d) => ({ ...d, [key]: false }));
+  }
+
   async function aiDraft(key: string) {
     if (!orgId) return;
     setDraftingKey(key);
@@ -389,6 +394,9 @@ function PlanNarrativePage() {
                             )}
                             AI draft
                           </GhostButton>
+                          {isDirty && (
+                            <GhostButton onClick={() => discard(s.key)}>Discard</GhostButton>
+                          )}
                           <PrimaryButton
                             onClick={() => save(s.key)}
                             disabled={savingKey === s.key || !isDirty}
