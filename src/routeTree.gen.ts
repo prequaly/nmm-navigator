@@ -71,8 +71,18 @@ import { Route as AuthenticatedAssessCommunityRouteImport } from './routes/_auth
 import { Route as AuthenticatedAssessCapacityRouteImport } from './routes/_authenticated/assess.capacity'
 import { Route as AuthenticatedAssess4rsRouteImport } from './routes/_authenticated/assess.4rs'
 import { Route as AuthenticatedReportPrintStrategicPlanRouteImport } from './routes/_authenticated/report.print.strategic-plan'
+import { Route as AuthenticatedReportPrintRevenueDiversificationRouteImport } from './routes/_authenticated/report.print.revenue-diversification'
+import { Route as AuthenticatedReportPrintProgramImpactRouteImport } from './routes/_authenticated/report.print.program-impact'
+import { Route as AuthenticatedReportPrintLogicModelRouteImport } from './routes/_authenticated/report.print.logic-model'
+import { Route as AuthenticatedReportPrintImpactReportRouteImport } from './routes/_authenticated/report.print.impact-report'
+import { Route as AuthenticatedReportPrintGrantReadinessRouteImport } from './routes/_authenticated/report.print.grant-readiness'
+import { Route as AuthenticatedReportPrintFundingGapRouteImport } from './routes/_authenticated/report.print.funding-gap'
 import { Route as AuthenticatedReportPrintFunderReportRouteImport } from './routes/_authenticated/report.print.funder-report'
+import { Route as AuthenticatedReportPrintFourrsReportRouteImport } from './routes/_authenticated/report.print.fourrs-report'
+import { Route as AuthenticatedReportPrintFinancialSustainabilityRouteImport } from './routes/_authenticated/report.print.financial-sustainability'
 import { Route as AuthenticatedReportPrintBoardPacketRouteImport } from './routes/_authenticated/report.print.board-packet'
+import { Route as AuthenticatedReportPrintAnnualOperatingPlanRouteImport } from './routes/_authenticated/report.print.annual-operating-plan'
+import { Route as AuthenticatedReportPrintActionPlan306090RouteImport } from './routes/_authenticated/report.print.action-plan-306090'
 import { Route as AuthenticatedGovernanceMeetingsMeetingIdRouteImport } from './routes/_authenticated/governance.meetings.$meetingId'
 import { Route as AuthenticatedAdminOrgsOrgIdRouteImport } from './routes/_authenticated/admin.orgs.$orgId'
 
@@ -428,16 +438,76 @@ const AuthenticatedReportPrintStrategicPlanRoute =
     path: '/report/print/strategic-plan',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedReportPrintRevenueDiversificationRoute =
+  AuthenticatedReportPrintRevenueDiversificationRouteImport.update({
+    id: '/report/print/revenue-diversification',
+    path: '/report/print/revenue-diversification',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintProgramImpactRoute =
+  AuthenticatedReportPrintProgramImpactRouteImport.update({
+    id: '/report/print/program-impact',
+    path: '/report/print/program-impact',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintLogicModelRoute =
+  AuthenticatedReportPrintLogicModelRouteImport.update({
+    id: '/report/print/logic-model',
+    path: '/report/print/logic-model',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintImpactReportRoute =
+  AuthenticatedReportPrintImpactReportRouteImport.update({
+    id: '/report/print/impact-report',
+    path: '/report/print/impact-report',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintGrantReadinessRoute =
+  AuthenticatedReportPrintGrantReadinessRouteImport.update({
+    id: '/report/print/grant-readiness',
+    path: '/report/print/grant-readiness',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintFundingGapRoute =
+  AuthenticatedReportPrintFundingGapRouteImport.update({
+    id: '/report/print/funding-gap',
+    path: '/report/print/funding-gap',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportPrintFunderReportRoute =
   AuthenticatedReportPrintFunderReportRouteImport.update({
     id: '/report/print/funder-report',
     path: '/report/print/funder-report',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedReportPrintFourrsReportRoute =
+  AuthenticatedReportPrintFourrsReportRouteImport.update({
+    id: '/report/print/fourrs-report',
+    path: '/report/print/fourrs-report',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintFinancialSustainabilityRoute =
+  AuthenticatedReportPrintFinancialSustainabilityRouteImport.update({
+    id: '/report/print/financial-sustainability',
+    path: '/report/print/financial-sustainability',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedReportPrintBoardPacketRoute =
   AuthenticatedReportPrintBoardPacketRouteImport.update({
     id: '/report/print/board-packet',
     path: '/report/print/board-packet',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintAnnualOperatingPlanRoute =
+  AuthenticatedReportPrintAnnualOperatingPlanRouteImport.update({
+    id: '/report/print/annual-operating-plan',
+    path: '/report/print/annual-operating-plan',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReportPrintActionPlan306090Route =
+  AuthenticatedReportPrintActionPlan306090RouteImport.update({
+    id: '/report/print/action-plan-306090',
+    path: '/report/print/action-plan-306090',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedGovernanceMeetingsMeetingIdRoute =
@@ -516,8 +586,18 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/orgs/$orgId': typeof AuthenticatedAdminOrgsOrgIdRoute
   '/governance/meetings/$meetingId': typeof AuthenticatedGovernanceMeetingsMeetingIdRoute
+  '/report/print/action-plan-306090': typeof AuthenticatedReportPrintActionPlan306090Route
+  '/report/print/annual-operating-plan': typeof AuthenticatedReportPrintAnnualOperatingPlanRoute
   '/report/print/board-packet': typeof AuthenticatedReportPrintBoardPacketRoute
+  '/report/print/financial-sustainability': typeof AuthenticatedReportPrintFinancialSustainabilityRoute
+  '/report/print/fourrs-report': typeof AuthenticatedReportPrintFourrsReportRoute
   '/report/print/funder-report': typeof AuthenticatedReportPrintFunderReportRoute
+  '/report/print/funding-gap': typeof AuthenticatedReportPrintFundingGapRoute
+  '/report/print/grant-readiness': typeof AuthenticatedReportPrintGrantReadinessRoute
+  '/report/print/impact-report': typeof AuthenticatedReportPrintImpactReportRoute
+  '/report/print/logic-model': typeof AuthenticatedReportPrintLogicModelRoute
+  '/report/print/program-impact': typeof AuthenticatedReportPrintProgramImpactRoute
+  '/report/print/revenue-diversification': typeof AuthenticatedReportPrintRevenueDiversificationRoute
   '/report/print/strategic-plan': typeof AuthenticatedReportPrintStrategicPlanRoute
 }
 export interface FileRoutesByTo {
@@ -582,8 +662,18 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/orgs/$orgId': typeof AuthenticatedAdminOrgsOrgIdRoute
   '/governance/meetings/$meetingId': typeof AuthenticatedGovernanceMeetingsMeetingIdRoute
+  '/report/print/action-plan-306090': typeof AuthenticatedReportPrintActionPlan306090Route
+  '/report/print/annual-operating-plan': typeof AuthenticatedReportPrintAnnualOperatingPlanRoute
   '/report/print/board-packet': typeof AuthenticatedReportPrintBoardPacketRoute
+  '/report/print/financial-sustainability': typeof AuthenticatedReportPrintFinancialSustainabilityRoute
+  '/report/print/fourrs-report': typeof AuthenticatedReportPrintFourrsReportRoute
   '/report/print/funder-report': typeof AuthenticatedReportPrintFunderReportRoute
+  '/report/print/funding-gap': typeof AuthenticatedReportPrintFundingGapRoute
+  '/report/print/grant-readiness': typeof AuthenticatedReportPrintGrantReadinessRoute
+  '/report/print/impact-report': typeof AuthenticatedReportPrintImpactReportRoute
+  '/report/print/logic-model': typeof AuthenticatedReportPrintLogicModelRoute
+  '/report/print/program-impact': typeof AuthenticatedReportPrintProgramImpactRoute
+  '/report/print/revenue-diversification': typeof AuthenticatedReportPrintRevenueDiversificationRoute
   '/report/print/strategic-plan': typeof AuthenticatedReportPrintStrategicPlanRoute
 }
 export interface FileRoutesById {
@@ -651,8 +741,18 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/orgs/$orgId': typeof AuthenticatedAdminOrgsOrgIdRoute
   '/_authenticated/governance/meetings/$meetingId': typeof AuthenticatedGovernanceMeetingsMeetingIdRoute
+  '/_authenticated/report/print/action-plan-306090': typeof AuthenticatedReportPrintActionPlan306090Route
+  '/_authenticated/report/print/annual-operating-plan': typeof AuthenticatedReportPrintAnnualOperatingPlanRoute
   '/_authenticated/report/print/board-packet': typeof AuthenticatedReportPrintBoardPacketRoute
+  '/_authenticated/report/print/financial-sustainability': typeof AuthenticatedReportPrintFinancialSustainabilityRoute
+  '/_authenticated/report/print/fourrs-report': typeof AuthenticatedReportPrintFourrsReportRoute
   '/_authenticated/report/print/funder-report': typeof AuthenticatedReportPrintFunderReportRoute
+  '/_authenticated/report/print/funding-gap': typeof AuthenticatedReportPrintFundingGapRoute
+  '/_authenticated/report/print/grant-readiness': typeof AuthenticatedReportPrintGrantReadinessRoute
+  '/_authenticated/report/print/impact-report': typeof AuthenticatedReportPrintImpactReportRoute
+  '/_authenticated/report/print/logic-model': typeof AuthenticatedReportPrintLogicModelRoute
+  '/_authenticated/report/print/program-impact': typeof AuthenticatedReportPrintProgramImpactRoute
+  '/_authenticated/report/print/revenue-diversification': typeof AuthenticatedReportPrintRevenueDiversificationRoute
   '/_authenticated/report/print/strategic-plan': typeof AuthenticatedReportPrintStrategicPlanRoute
 }
 export interface FileRouteTypes {
@@ -720,8 +820,18 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/orgs/$orgId'
     | '/governance/meetings/$meetingId'
+    | '/report/print/action-plan-306090'
+    | '/report/print/annual-operating-plan'
     | '/report/print/board-packet'
+    | '/report/print/financial-sustainability'
+    | '/report/print/fourrs-report'
     | '/report/print/funder-report'
+    | '/report/print/funding-gap'
+    | '/report/print/grant-readiness'
+    | '/report/print/impact-report'
+    | '/report/print/logic-model'
+    | '/report/print/program-impact'
+    | '/report/print/revenue-diversification'
     | '/report/print/strategic-plan'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -786,8 +896,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/orgs/$orgId'
     | '/governance/meetings/$meetingId'
+    | '/report/print/action-plan-306090'
+    | '/report/print/annual-operating-plan'
     | '/report/print/board-packet'
+    | '/report/print/financial-sustainability'
+    | '/report/print/fourrs-report'
     | '/report/print/funder-report'
+    | '/report/print/funding-gap'
+    | '/report/print/grant-readiness'
+    | '/report/print/impact-report'
+    | '/report/print/logic-model'
+    | '/report/print/program-impact'
+    | '/report/print/revenue-diversification'
     | '/report/print/strategic-plan'
   id:
     | '__root__'
@@ -854,8 +974,18 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/admin/orgs/$orgId'
     | '/_authenticated/governance/meetings/$meetingId'
+    | '/_authenticated/report/print/action-plan-306090'
+    | '/_authenticated/report/print/annual-operating-plan'
     | '/_authenticated/report/print/board-packet'
+    | '/_authenticated/report/print/financial-sustainability'
+    | '/_authenticated/report/print/fourrs-report'
     | '/_authenticated/report/print/funder-report'
+    | '/_authenticated/report/print/funding-gap'
+    | '/_authenticated/report/print/grant-readiness'
+    | '/_authenticated/report/print/impact-report'
+    | '/_authenticated/report/print/logic-model'
+    | '/_authenticated/report/print/program-impact'
+    | '/_authenticated/report/print/revenue-diversification'
     | '/_authenticated/report/print/strategic-plan'
   fileRoutesById: FileRoutesById
 }
@@ -1302,6 +1432,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportPrintStrategicPlanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/report/print/revenue-diversification': {
+      id: '/_authenticated/report/print/revenue-diversification'
+      path: '/report/print/revenue-diversification'
+      fullPath: '/report/print/revenue-diversification'
+      preLoaderRoute: typeof AuthenticatedReportPrintRevenueDiversificationRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/program-impact': {
+      id: '/_authenticated/report/print/program-impact'
+      path: '/report/print/program-impact'
+      fullPath: '/report/print/program-impact'
+      preLoaderRoute: typeof AuthenticatedReportPrintProgramImpactRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/logic-model': {
+      id: '/_authenticated/report/print/logic-model'
+      path: '/report/print/logic-model'
+      fullPath: '/report/print/logic-model'
+      preLoaderRoute: typeof AuthenticatedReportPrintLogicModelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/impact-report': {
+      id: '/_authenticated/report/print/impact-report'
+      path: '/report/print/impact-report'
+      fullPath: '/report/print/impact-report'
+      preLoaderRoute: typeof AuthenticatedReportPrintImpactReportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/grant-readiness': {
+      id: '/_authenticated/report/print/grant-readiness'
+      path: '/report/print/grant-readiness'
+      fullPath: '/report/print/grant-readiness'
+      preLoaderRoute: typeof AuthenticatedReportPrintGrantReadinessRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/funding-gap': {
+      id: '/_authenticated/report/print/funding-gap'
+      path: '/report/print/funding-gap'
+      fullPath: '/report/print/funding-gap'
+      preLoaderRoute: typeof AuthenticatedReportPrintFundingGapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report/print/funder-report': {
       id: '/_authenticated/report/print/funder-report'
       path: '/report/print/funder-report'
@@ -1309,11 +1481,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportPrintFunderReportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/report/print/fourrs-report': {
+      id: '/_authenticated/report/print/fourrs-report'
+      path: '/report/print/fourrs-report'
+      fullPath: '/report/print/fourrs-report'
+      preLoaderRoute: typeof AuthenticatedReportPrintFourrsReportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/financial-sustainability': {
+      id: '/_authenticated/report/print/financial-sustainability'
+      path: '/report/print/financial-sustainability'
+      fullPath: '/report/print/financial-sustainability'
+      preLoaderRoute: typeof AuthenticatedReportPrintFinancialSustainabilityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report/print/board-packet': {
       id: '/_authenticated/report/print/board-packet'
       path: '/report/print/board-packet'
       fullPath: '/report/print/board-packet'
       preLoaderRoute: typeof AuthenticatedReportPrintBoardPacketRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/annual-operating-plan': {
+      id: '/_authenticated/report/print/annual-operating-plan'
+      path: '/report/print/annual-operating-plan'
+      fullPath: '/report/print/annual-operating-plan'
+      preLoaderRoute: typeof AuthenticatedReportPrintAnnualOperatingPlanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/report/print/action-plan-306090': {
+      id: '/_authenticated/report/print/action-plan-306090'
+      path: '/report/print/action-plan-306090'
+      fullPath: '/report/print/action-plan-306090'
+      preLoaderRoute: typeof AuthenticatedReportPrintActionPlan306090RouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/governance/meetings/$meetingId': {
@@ -1418,8 +1618,18 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportInsightsRoute: typeof AuthenticatedReportInsightsRoute
   AuthenticatedReportMonthlyReviewRoute: typeof AuthenticatedReportMonthlyReviewRoute
   AuthenticatedReportStoriesRoute: typeof AuthenticatedReportStoriesRoute
+  AuthenticatedReportPrintActionPlan306090Route: typeof AuthenticatedReportPrintActionPlan306090Route
+  AuthenticatedReportPrintAnnualOperatingPlanRoute: typeof AuthenticatedReportPrintAnnualOperatingPlanRoute
   AuthenticatedReportPrintBoardPacketRoute: typeof AuthenticatedReportPrintBoardPacketRoute
+  AuthenticatedReportPrintFinancialSustainabilityRoute: typeof AuthenticatedReportPrintFinancialSustainabilityRoute
+  AuthenticatedReportPrintFourrsReportRoute: typeof AuthenticatedReportPrintFourrsReportRoute
   AuthenticatedReportPrintFunderReportRoute: typeof AuthenticatedReportPrintFunderReportRoute
+  AuthenticatedReportPrintFundingGapRoute: typeof AuthenticatedReportPrintFundingGapRoute
+  AuthenticatedReportPrintGrantReadinessRoute: typeof AuthenticatedReportPrintGrantReadinessRoute
+  AuthenticatedReportPrintImpactReportRoute: typeof AuthenticatedReportPrintImpactReportRoute
+  AuthenticatedReportPrintLogicModelRoute: typeof AuthenticatedReportPrintLogicModelRoute
+  AuthenticatedReportPrintProgramImpactRoute: typeof AuthenticatedReportPrintProgramImpactRoute
+  AuthenticatedReportPrintRevenueDiversificationRoute: typeof AuthenticatedReportPrintRevenueDiversificationRoute
   AuthenticatedReportPrintStrategicPlanRoute: typeof AuthenticatedReportPrintStrategicPlanRoute
 }
 
@@ -1483,10 +1693,30 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportInsightsRoute: AuthenticatedReportInsightsRoute,
   AuthenticatedReportMonthlyReviewRoute: AuthenticatedReportMonthlyReviewRoute,
   AuthenticatedReportStoriesRoute: AuthenticatedReportStoriesRoute,
+  AuthenticatedReportPrintActionPlan306090Route:
+    AuthenticatedReportPrintActionPlan306090Route,
+  AuthenticatedReportPrintAnnualOperatingPlanRoute:
+    AuthenticatedReportPrintAnnualOperatingPlanRoute,
   AuthenticatedReportPrintBoardPacketRoute:
     AuthenticatedReportPrintBoardPacketRoute,
+  AuthenticatedReportPrintFinancialSustainabilityRoute:
+    AuthenticatedReportPrintFinancialSustainabilityRoute,
+  AuthenticatedReportPrintFourrsReportRoute:
+    AuthenticatedReportPrintFourrsReportRoute,
   AuthenticatedReportPrintFunderReportRoute:
     AuthenticatedReportPrintFunderReportRoute,
+  AuthenticatedReportPrintFundingGapRoute:
+    AuthenticatedReportPrintFundingGapRoute,
+  AuthenticatedReportPrintGrantReadinessRoute:
+    AuthenticatedReportPrintGrantReadinessRoute,
+  AuthenticatedReportPrintImpactReportRoute:
+    AuthenticatedReportPrintImpactReportRoute,
+  AuthenticatedReportPrintLogicModelRoute:
+    AuthenticatedReportPrintLogicModelRoute,
+  AuthenticatedReportPrintProgramImpactRoute:
+    AuthenticatedReportPrintProgramImpactRoute,
+  AuthenticatedReportPrintRevenueDiversificationRoute:
+    AuthenticatedReportPrintRevenueDiversificationRoute,
   AuthenticatedReportPrintStrategicPlanRoute:
     AuthenticatedReportPrintStrategicPlanRoute,
 }
