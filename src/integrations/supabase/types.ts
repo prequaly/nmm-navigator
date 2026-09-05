@@ -146,6 +146,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           plan_id: string
+          reflection: string | null
           responses: Json
           score: number | null
           updated_at: string
@@ -160,6 +161,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           plan_id: string
+          reflection?: string | null
           responses?: Json
           score?: number | null
           updated_at?: string
@@ -174,6 +176,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           plan_id?: string
+          reflection?: string | null
           responses?: Json
           score?: number | null
           updated_at?: string

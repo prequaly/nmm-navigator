@@ -69,6 +69,8 @@ export function AssessmentRunner({
   const [loadingPrev, setLoadingPrev] = useState(true);
   const [saving, setSaving] = useState(false);
   const [reflection, setReflection] = useState<string>("");
+  const [savedReflection, setSavedReflection] = useState<string>("");
+  const [savingReflection, setSavingReflection] = useState(false);
   const draft = useServerFn(draftNarrative);
 
   // A new/pre-launch org shouldn't see historical questions defaulted as if
@@ -90,7 +92,7 @@ export function AssessmentRunner({
         supabase.from("organizations").select("stage").eq("id", orgId).maybeSingle(),
         supabase
           .from("assessment_responses")
-          .select("id,responses,completed_at")
+          .select("id,responses,completed_at,reflection")
           .eq("organization_id", orgId)
           .eq("plan_id", planId)
           .eq("assessment_type", assessmentType)
@@ -105,6 +107,8 @@ export function AssessmentRunner({
         setExistingId(data.id);
         setAnswers(normalizeAnswers(data.responses as Record<string, unknown>));
         if (data.completed_at) setDone(true);
+        setReflection(data.reflection ?? "");
+        setSavedReflection(data.reflection ?? "");
       }
       setLoadingPrev(false);
     })();
@@ -187,6 +191,23 @@ export function AssessmentRunner({
     await persist(true);
     setDone(true);
     toast.success("Assessment saved");
+  }
+
+  async function saveReflection() {
+    if (!existingId) return;
+    setSavingReflection(true);
+    const { error } = await supabase
+      .from("assessment_responses")
+      .update({ reflection })
+      .eq("id", existingId);
+    setSavingReflection(false);
+    if (error) return toast.error(error.message);
+    setSavedReflection(reflection);
+    toast.success("Reflection saved");
+  }
+
+  function discardReflection() {
+    setReflection(savedReflection);
   }
 
   async function retake() {
@@ -298,9 +319,22 @@ export function AssessmentRunner({
           }
         >
           {reflection ? (
-            <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap leading-relaxed">
-              {reflection}
-            </div>
+            <>
+              <textarea
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                rows={6}
+                className="w-full text-sm text-slate-700 leading-relaxed border border-slate-200 rounded-md px-3 py-2 whitespace-pre-wrap"
+              />
+              {reflection !== savedReflection && (
+                <div className="flex items-center gap-2 mt-2">
+                  <PrimaryButton onClick={saveReflection} disabled={savingReflection}>
+                    {savingReflection ? "Saving…" : "Accept & save"}
+                  </PrimaryButton>
+                  <GhostButton onClick={discardReflection}>Discard</GhostButton>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-sm text-slate-500 italic flex items-center gap-2">
               <Sparkles className="size-3.5 text-brand-primary" />

@@ -13,5 +13,9 @@ export function createGeminiProvider(apiKey: string) {
     headers: {
       Authorization: `Bearer ${apiKey}`,
     },
+    // Gemini's OpenAI-compat endpoint supports strict JSON-schema responses
+    // (needed for generateObject); without this the SDK falls back to loose
+    // "json_object" mode, which some Gemini models don't reliably honor.
+    supportsStructuredOutputs: true,
   });
 }

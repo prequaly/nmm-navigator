@@ -32,6 +32,7 @@ import {
   FOURRS_LENSES,
   PLAN_SECTIONS,
 } from "@/lib/plan/sections";
+import { AiStrategicAnalysis } from "@/components/plan/AiStrategicAnalysis";
 
 export const Route = createFileRoute("/_authenticated/plan/builder")({
   head: () => ({ meta: [{ title: "Strategic Planning Builder — NMM Navigator" }] }),
@@ -224,6 +225,8 @@ function BuilderPage() {
               })}
             </ol>
           </SectionCard>
+
+          <AiStrategicAnalysis orgId={orgId!} planId={planId!} onChanged={refresh} />
 
           {step === "mission" && (
             <StepBody
