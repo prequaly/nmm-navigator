@@ -7,6 +7,28 @@ import { toast } from "sonner";
 import { downloadStrategicPlanDocx, downloadStrategicPlanXlsx } from "@/lib/exports/strategic-plan";
 import { downloadBoardPacketDocx, downloadBoardPacketXlsx } from "@/lib/exports/board-packet";
 import { downloadFunderReportDocx, downloadFunderReportXlsx } from "@/lib/exports/funder-report";
+import { download306090Docx, download306090Xlsx } from "@/lib/exports/action-plan-306090";
+import { downloadImpactReportDocx, downloadImpactReportXlsx } from "@/lib/exports/impact-report";
+import { download4RsReportDocx, download4RsReportXlsx } from "@/lib/exports/fourrs-report";
+import {
+  downloadRevenueDiversificationDocx,
+  downloadRevenueDiversificationXlsx,
+} from "@/lib/exports/revenue-diversification";
+import { downloadFundingGapDocx, downloadFundingGapXlsx } from "@/lib/exports/funding-gap";
+import {
+  downloadFinancialSustainabilityDocx,
+  downloadFinancialSustainabilityXlsx,
+} from "@/lib/exports/financial-sustainability";
+import { downloadProgramImpactDocx, downloadProgramImpactXlsx } from "@/lib/exports/program-impact";
+import {
+  downloadGrantReadinessDocx,
+  downloadGrantReadinessXlsx,
+} from "@/lib/exports/grant-readiness";
+import {
+  downloadAnnualOperatingPlanDocx,
+  downloadAnnualOperatingPlanXlsx,
+} from "@/lib/exports/annual-operating-plan";
+import { downloadLogicModelDocx, downloadLogicModelXlsx } from "@/lib/exports/logic-model";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/report/exports")({
@@ -51,6 +73,95 @@ const TEMPLATES: Template[] = [
     docx: downloadFunderReportDocx,
     xlsx: downloadFunderReportXlsx,
   },
+  {
+    key: "action-plan-306090",
+    title: "30-60-90 Day Action Plan",
+    description:
+      "Every open action item bucketed into your first 30, 60, and 90 days — the onboarding-ready execution plan.",
+    printRoute: "/report/print/action-plan-306090",
+    docx: download306090Docx,
+    xlsx: download306090Xlsx,
+  },
+  {
+    key: "impact-report",
+    title: "IMPACT Report",
+    description:
+      "Your IMPACT Framework Audit score alongside which strategic pillars actually address each IMPACT lens.",
+    printRoute: "/report/print/impact-report",
+    docx: downloadImpactReportDocx,
+    xlsx: downloadImpactReportXlsx,
+  },
+  {
+    key: "fourrs-report",
+    title: "4Rs Report",
+    description:
+      "Your 4Rs Framework Audit score alongside which strategic pillars address Relationships, Resources, Results, and Reputation.",
+    printRoute: "/report/print/fourrs-report",
+    docx: download4RsReportDocx,
+    xlsx: download4RsReportXlsx,
+  },
+  {
+    key: "revenue-diversification",
+    title: "Revenue Diversification Report",
+    description:
+      "Concentration risk scored with the Herfindahl-Hirschman Index (HHI) across your logged revenue categories.",
+    printRoute: "/report/print/revenue-diversification",
+    docx: downloadRevenueDiversificationDocx,
+    xlsx: downloadRevenueDiversificationXlsx,
+  },
+  {
+    key: "funding-gap",
+    title: "Funding Gap Report",
+    description:
+      "Required vs. secured funding across every entry in the Asks Bank, by pillar and type.",
+    printRoute: "/report/print/funding-gap",
+    docx: downloadFundingGapDocx,
+    xlsx: downloadFundingGapXlsx,
+  },
+  {
+    key: "financial-sustainability",
+    title: "Financial Sustainability Report",
+    description:
+      "Reserves, runway, and growth assumptions — the numbers a board finance committee reviews first.",
+    printRoute: "/report/print/financial-sustainability",
+    docx: downloadFinancialSustainabilityDocx,
+    xlsx: downloadFinancialSustainabilityXlsx,
+  },
+  {
+    key: "program-impact",
+    title: "Program Impact Report",
+    description:
+      "Program roster and outcome KPIs side by side — what you run and what it produces.",
+    printRoute: "/report/print/program-impact",
+    docx: downloadProgramImpactDocx,
+    xlsx: downloadProgramImpactXlsx,
+  },
+  {
+    key: "grant-readiness",
+    title: "Grant Readiness Report",
+    description:
+      "A funder-facing readiness checklist plus your live grant pipeline — know what to fix before you apply.",
+    printRoute: "/report/print/grant-readiness",
+    docx: downloadGrantReadinessDocx,
+    xlsx: downloadGrantReadinessXlsx,
+  },
+  {
+    key: "annual-operating-plan",
+    title: "Annual Operating Plan",
+    description:
+      "Year-1 detail: strategic pillars, programs, quarterly work plan, KPIs, and budget in one document.",
+    printRoute: "/report/print/annual-operating-plan",
+    docx: downloadAnnualOperatingPlanDocx,
+    xlsx: downloadAnnualOperatingPlanXlsx,
+  },
+  {
+    key: "logic-model",
+    title: "Logic Model & Theory of Change",
+    description: "The causal chain from inputs to impact, auto-built from your Theory of Change.",
+    printRoute: "/report/print/logic-model",
+    docx: downloadLogicModelDocx,
+    xlsx: downloadLogicModelXlsx,
+  },
 ];
 
 function ExportsPage() {
@@ -79,7 +190,10 @@ function ExportsPage() {
           <div className="text-center text-sm text-slate-500">Loading…</div>
         </SectionCard>
       ) : !orgId ? (
-        <EmptyState title="No organization found" description="Set up your organization profile first." />
+        <EmptyState
+          title="No organization found"
+          description="Set up your organization profile first."
+        />
       ) : (
         <div className="space-y-4">
           {TEMPLATES.map((t) => {
