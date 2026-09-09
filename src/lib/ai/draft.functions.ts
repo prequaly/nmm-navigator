@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
-import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { createGeminiProvider, withModelFallback } from "@/lib/ai-gateway.server";
 import { z } from "zod";
 
 const Input = z.object({
@@ -32,11 +32,7 @@ function callGateway(system: string, prompt: string) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("Missing GEMINI_API_KEY");
   const gateway = createGeminiProvider(key);
-  return generateText({
-    model: gateway("gemini-flash-latest"),
-    system,
-    prompt,
-  });
+  return withModelFallback((modelId) => generateText({ model: gateway(modelId), system, prompt }));
 }
 
 export const draftNarrative = createServerFn({ method: "POST" })
