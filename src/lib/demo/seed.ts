@@ -3,14 +3,17 @@
 // must be an editor/owner of the org.
 import { supabase } from "@/integrations/supabase/client";
 
-const MONTHS = 12;
-const monthly = (annual: number) =>
-  Array.from({ length: MONTHS }, () => Math.round((annual / MONTHS) * 100) / 100);
-
-// Slight seasonality so charts look real.
-const seasonal = (annual: number, weights: number[]) => {
-  const sum = weights.reduce((a, b) => a + b, 0);
-  return weights.map((w) => Math.round((annual * (w / sum)) * 100) / 100);
+// revenue_streams/expense_lines.yearly_amounts is a {y1..y5} object (see
+// fund.budget.tsx's YearlyAmounts type) — a 5-year budget horizon, not a
+// 12-month breakdown. year1 is the baseline; growth compounds each year.
+const years5 = (year1: number, growth = 0.04) => {
+  const out: Record<string, number> = {};
+  let amount = year1;
+  for (let i = 1; i <= 5; i++) {
+    out[`y${i}`] = Math.round(amount);
+    amount *= 1 + growth;
+  }
+  return out;
 };
 
 const ORG = {
@@ -118,9 +121,51 @@ export async function seedSampleData(orgId: string) {
 
   // 5. OKRs
   await supabase.from("okrs").insert([
-    { plan_id: planId, organization_id: orgId, pillar_id: pid("Revenue Diversification"), objective: "Grow individual giving to $165k", owner: "Dev Director", quarter: "Q4", status: "on_track", progress: 0.55, key_results: ["Year-end appeal launched by Dec 3", "Monthly giving program: 80 donors", "Major donor pipeline: 15 prospects"] },
-    { plan_id: planId, organization_id: orgId, pillar_id: pid("Eastside Studio"), objective: "Sign Eastside studio lease", owner: "Executive Director", quarter: "Q2", status: "at_risk", progress: 0.40, key_results: ["3 site visits complete", "Lead gift secured", "Build-out plan approved"] },
-    { plan_id: planId, organization_id: orgId, pillar_id: pid("Evaluation Framework"), objective: "Deploy evaluation framework across 4 programs", owner: "Program Director", quarter: "Q2", status: "on_track", progress: 0.25, key_results: ["Framework design complete", "Pilot launched Feb 15", "Staff trained"] },
+    {
+      plan_id: planId,
+      organization_id: orgId,
+      pillar_id: pid("Revenue Diversification"),
+      objective: "Grow individual giving to $165k",
+      owner: "Dev Director",
+      quarter: "Q4",
+      status: "on_track",
+      progress: 0.55,
+      key_results: [
+        { kr: "Year-end appeal launched by Dec 3", metric: "launched", actual: 1, target: 1 },
+        { kr: "Monthly giving program: 80 donors", metric: "donors", actual: 44, target: 80 },
+        { kr: "Major donor pipeline: 15 prospects", metric: "prospects", actual: 9, target: 15 },
+      ],
+    },
+    {
+      plan_id: planId,
+      organization_id: orgId,
+      pillar_id: pid("Eastside Studio"),
+      objective: "Sign Eastside studio lease",
+      owner: "Executive Director",
+      quarter: "Q2",
+      status: "at_risk",
+      progress: 0.4,
+      key_results: [
+        { kr: "3 site visits complete", metric: "visits", actual: 3, target: 3 },
+        { kr: "Lead gift secured", metric: "gift", actual: 0, target: 1 },
+        { kr: "Build-out plan approved", metric: "plan", actual: 0, target: 1 },
+      ],
+    },
+    {
+      plan_id: planId,
+      organization_id: orgId,
+      pillar_id: pid("Evaluation Framework"),
+      objective: "Deploy evaluation framework across 4 programs",
+      owner: "Program Director",
+      quarter: "Q2",
+      status: "on_track",
+      progress: 0.25,
+      key_results: [
+        { kr: "Framework design complete", metric: "design", actual: 1, target: 1 },
+        { kr: "Pilot launched Feb 15", metric: "pilot", actual: 0, target: 1 },
+        { kr: "Staff trained", metric: "staff", actual: 1, target: 4 },
+      ],
+    },
   ]);
 
   // 6. Roadmap items
@@ -158,25 +203,30 @@ export async function seedSampleData(orgId: string) {
     activities: ["After-school mural cohorts", "Summer songwriters lab", "First Friday open studio", "Teaching-artist mentorship"],
     outputs: ["1,200 youth served annually", "120 finished public artworks", "40 teaching-artist hours/week"],
     outcomes: ["Increased youth agency", "Improved school engagement", "Stronger community cultural identity"],
-    impact: "A region where every young person has the agency to shape their neighborhood's story.",
-    assumptions: "Schools remain open to outside arts partners; foundation funding for youth arts holds steady.",
+    impact: ["A region where every young person has the agency to shape their neighborhood's story."],
+    assumptions: [
+      "Schools remain open to outside arts partners.",
+      "Foundation funding for youth arts holds steady.",
+    ],
   });
 
-  // 9. Revenue streams (yearly amounts, monthly array)
+  // 9. Revenue streams — yearly_amounts is a {y1..y5} 5-year budget horizon.
   await supabase.from("revenue_streams").insert([
-    { plan_id: planId, organization_id: orgId, name: "Foundation Grants", category: "Grants", yearly_amounts: seasonal(215000, [10, 9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8]), confidence: "high", sort_order: 1 },
-    { plan_id: planId, organization_id: orgId, name: "Individual Donors", category: "Contributions", yearly_amounts: seasonal(118000, [6, 6, 7, 7, 7, 7, 7, 8, 8, 10, 13, 14]), confidence: "medium", sort_order: 2 },
-    { plan_id: planId, organization_id: orgId, name: "Earned (Workshops)", category: "Earned", yearly_amounts: seasonal(78000, [6, 6, 8, 9, 10, 10, 12, 12, 10, 7, 5, 5]), confidence: "high", sort_order: 3 },
-    { plan_id: planId, organization_id: orgId, name: "Government", category: "Government", yearly_amounts: monthly(42000), confidence: "medium", sort_order: 4 },
-    { plan_id: planId, organization_id: orgId, name: "Corporate", category: "Corporate", yearly_amounts: seasonal(25000, [5, 6, 7, 8, 9, 9, 9, 9, 9, 10, 10, 9]), confidence: "low", sort_order: 5 },
+    { plan_id: planId, organization_id: orgId, name: "Foundation Grants", category: "Grants", yearly_amounts: years5(215000, 0.02), confidence: "high", sort_order: 1 },
+    { plan_id: planId, organization_id: orgId, name: "Individual Donors", category: "Contributions", yearly_amounts: years5(118000, 0.12), confidence: "medium", sort_order: 2 },
+    { plan_id: planId, organization_id: orgId, name: "Earned (Workshops)", category: "Earned", yearly_amounts: years5(78000, 0.06), confidence: "high", sort_order: 3 },
+    { plan_id: planId, organization_id: orgId, name: "Government", category: "Government", yearly_amounts: years5(42000, 0.02), confidence: "medium", sort_order: 4 },
+    { plan_id: planId, organization_id: orgId, name: "Corporate", category: "Corporate", yearly_amounts: years5(25000, 0.05), confidence: "low", sort_order: 5 },
   ]);
 
-  // 10. Expense lines
+  // 10. Expense lines — same {y1..y5} shape as revenue. category is
+  // constrained by a DB CHECK to exactly 'program' | 'admin' | 'fundraising'
+  // (lowercase) — anything else fails the whole multi-row insert atomically.
   await supabase.from("expense_lines").insert([
-    { plan_id: planId, organization_id: orgId, name: "Program Salaries", category: "Personnel", yearly_amounts: monthly(296000), sort_order: 1 },
-    { plan_id: planId, organization_id: orgId, name: "Admin & Operations", category: "Operations", yearly_amounts: monthly(98000), sort_order: 2 },
-    { plan_id: planId, organization_id: orgId, name: "Fundraising", category: "Fundraising", yearly_amounts: seasonal(52000, [6, 6, 7, 7, 8, 8, 8, 9, 9, 11, 12, 9]), sort_order: 3 },
-    { plan_id: planId, organization_id: orgId, name: "Facilities", category: "Operations", yearly_amounts: monthly(58000), sort_order: 4 },
+    { plan_id: planId, organization_id: orgId, name: "Program Salaries", category: "program", yearly_amounts: years5(296000, 0.03), sort_order: 1 },
+    { plan_id: planId, organization_id: orgId, name: "Admin & Operations", category: "admin", yearly_amounts: years5(98000, 0.03), sort_order: 2 },
+    { plan_id: planId, organization_id: orgId, name: "Fundraising", category: "fundraising", yearly_amounts: years5(52000, 0.05), sort_order: 3 },
+    { plan_id: planId, organization_id: orgId, name: "Facilities", category: "admin", yearly_amounts: years5(58000, 0.03), sort_order: 4 },
   ]);
 
   // 11. Grants

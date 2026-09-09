@@ -385,8 +385,12 @@ export function AppShell({
             <Menu className="size-5" />
           </button>
 
-          {/* Center — page title (mockup style) */}
-          <div className="min-w-0 text-center md:text-center">
+          {/* Center — page title (mockup style). Explicit column placement from
+              md: up, since the hamburger button (column 1) becomes display:none
+              there — without it, grid auto-placement shifts this into column 1
+              and the actions cluster into column 2, letting long subtitles and
+              multi-button action rows overlap each other. */}
+          <div className="min-w-0 text-center md:text-center md:col-start-2">
             <h1 className="font-serif text-[1.7rem] md:text-[2rem] leading-none tracking-wide text-teal-deep uppercase truncate">
               {title}
             </h1>
@@ -396,7 +400,7 @@ export function AppShell({
           </div>
 
           {/* Right cluster */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 justify-end">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 justify-end md:col-start-3">
             {actions}
             <div className="hidden lg:flex items-center gap-2 pl-3 pr-4 py-2 rounded-full bg-white border border-border text-xs text-muted-foreground w-56">
               <Search className="size-3.5" />
