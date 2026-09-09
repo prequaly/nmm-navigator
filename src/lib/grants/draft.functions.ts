@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateText } from "ai";
-import { createGeminiProvider } from "@/lib/ai-gateway.server";
+import { createGeminiProvider, withModelFallback } from "@/lib/ai-gateway.server";
 import { z } from "zod";
 import { getQuestion } from "./questions";
 
@@ -34,7 +34,11 @@ export const draftGrantResponse = createServerFn({ method: "POST" })
 
     // Pull org + existing response context.
     const [{ data: org }, { data: existing }, { data: pillars }] = await Promise.all([
-      supabase.from("organizations").select("name,mission").eq("id", data.organizationId).maybeSingle(),
+      supabase
+        .from("organizations")
+        .select("name,mission")
+        .eq("id", data.organizationId)
+        .maybeSingle(),
       supabase
         .from("grant_responses")
         .select("question_id,variant,content")
@@ -80,7 +84,9 @@ export const draftGrantResponse = createServerFn({ method: "POST" })
         : `Aim for approximately ${variant.target.value} words.`;
 
     const includeLine = q.include?.length ? `Be sure to address: ${q.include.join(", ")}.` : "";
-    const userExtra = data.additionalContext?.trim() ? `\nAdditional context from the user:\n${data.additionalContext.trim()}` : "";
+    const userExtra = data.additionalContext?.trim()
+      ? `\nAdditional context from the user:\n${data.additionalContext.trim()}`
+      : "";
 
     const system = `You are an expert grant writer for nonprofit organizations. Produce a polished, specific, donor-facing narrative in the organization's voice. Avoid clichés and filler. Use plain prose — no bullet points or headings unless the prompt requires them. Do not invent statistics; if data is missing, write in qualitative terms.`;
 
@@ -102,16 +108,15 @@ Return ONLY the response text — no preamble, no closing remarks.`;
 
     const gateway = createGeminiProvider(key);
     try {
-      const { text } = await generateText({
-        model: gateway("gemini-flash-latest"),
-        system,
-        prompt,
-      });
+      const { text } = await withModelFallback((modelId) =>
+        generateText({ model: gateway(modelId), system, prompt }),
+      );
       return { text: text.trim() };
     } catch (err: unknown) {
       const e = err as { statusCode?: number; status?: number; message?: string };
       const status = e.statusCode ?? e.status;
-      if (status === 429) throw new Error("Gemini API rate limit reached — wait a minute and try again.");
+      if (status === 429)
+        throw new Error("Gemini API rate limit reached — wait a minute and try again.");
       if (status === 403) {
         throw new Error(
           "Gemini API key was rejected or is out of quota — check the key in Google AI Studio.",
@@ -120,4 +125,3 @@ Return ONLY the response text — no preamble, no closing remarks.`;
       throw new Error(e.message ?? "AI request failed");
     }
   });
-
