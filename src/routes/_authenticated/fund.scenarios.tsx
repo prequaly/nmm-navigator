@@ -11,6 +11,7 @@ import { LineChart as LineChartIcon, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
+import { TaxPrefillBanner } from "@/components/finance/TaxPrefillBanner";
 import { toast } from "sonner";
 import { AiPressureTest } from "@/components/plan/AiPressureTest";
 
@@ -141,6 +142,8 @@ function ScenariosPage() {
       }
     >
       {!ready && <p className="text-sm text-slate-500 py-12 text-center">Loading…</p>}
+
+      {ready && <TaxPrefillBanner orgId={orgId} planId={planId} onApplied={refresh} />}
 
       {ready && baseRevenue === 0 && baseExpense === 0 && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">

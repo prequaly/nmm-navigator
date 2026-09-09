@@ -2607,6 +2607,71 @@ export type Database = {
           },
         ]
       }
+      tax_filings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          filed_ein: string | null
+          filed_organization_name: string | null
+          fiscal_year_end: string | null
+          form_type: string
+          id: string
+          notes: string | null
+          organization_id: string
+          revenue_lines: Json
+          source: string
+          source_filename: string | null
+          tax_year: number
+          top_contributors: Json
+          total_revenue: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          filed_ein?: string | null
+          filed_organization_name?: string | null
+          fiscal_year_end?: string | null
+          form_type?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          revenue_lines?: Json
+          source?: string
+          source_filename?: string | null
+          tax_year: number
+          top_contributors?: Json
+          total_revenue?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          filed_ein?: string | null
+          filed_organization_name?: string | null
+          fiscal_year_end?: string | null
+          form_type?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          revenue_lines?: Json
+          source?: string
+          source_filename?: string | null
+          tax_year?: number
+          top_contributors?: Json
+          total_revenue?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_filings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

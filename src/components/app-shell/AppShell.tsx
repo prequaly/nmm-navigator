@@ -99,10 +99,11 @@ const JOURNEY: JourneyStep[] = [
     n: 5,
     key: "fund",
     label: "Fund My Strategy",
-    to: "/fund/budget",
+    to: "/fund/reserves",
+    // Budget Planner and Cash Flow Forecast sit last on purpose: the modules
+    // above them are prefilled from the org's filed tax figures, so the user
+    // reviews what's already known before building forward-looking plans.
     sub: [
-      { to: "/fund/budget", label: "Budget Planner" },
-      { to: "/fund/proforma", label: "Cash Flow Forecast" },
       { to: "/fund/reserves", label: "Operating Reserves" },
       { to: "/fund/gap", label: "Funding Gap" },
       { to: "/fund/scenarios", label: "Scenario Modeling" },
@@ -112,6 +113,8 @@ const JOURNEY: JourneyStep[] = [
       { to: "/fund/donor-segments", label: "Donor Segments" },
       { to: "/fund/asks-bank", label: "Asks Bank" },
       { to: "/fund/grant-bank", label: "Grant Response Bank" },
+      { to: "/fund/budget", label: "Budget Planner" },
+      { to: "/fund/proforma", label: "Cash Flow Forecast" },
     ],
   },
   {
