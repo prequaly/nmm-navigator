@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Vercel (build output + linked-project metadata)
+.vercel
+
 # Environment variables (contain secrets/keys)
 .env
 .env.*

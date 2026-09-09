@@ -275,6 +275,34 @@ client-side insert), and confirm at least one AI call
 (`plan.narrative.tsx`'s AI draft button is the fastest check) returns a
 real completion through the Gemini gateway.
 
+### Deploying to Vercel
+
+`vercel.json` is checked in and sets `NITRO_PRESET=vercel` for the build, so
+the Nitro server bundle is emitted as a Vercel function (`.vercel/output`,
+Build Output API v3) instead of the Cloudflare Worker that builds by default
+locally. Nothing else about the build changes, and local/Cloudflare builds are
+unaffected because the preset is only set inside Vercel's build environment.
+
+To stand up a preview site:
+
+1. Import the GitHub repo at [vercel.com/new](https://vercel.com/new). Leave
+   the framework preset as **Other** — `vercel.json` supplies the build and
+   install commands.
+2. Add these environment variables in the Vercel project (Settings →
+   Environment Variables), matching your `.env`:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+   `VITE_SUPABASE_PROJECT_ID`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+   `SUPABASE_PROJECT_ID`, `SUPABASE_SERVICE_ROLE_KEY`, and `GEMINI_API_KEY`.
+   The two server-only secrets (`SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`)
+   must **not** be given `VITE_` names — that prefix ships them to the browser.
+3. Deploy. Every push to `main` then publishes automatically, and each PR gets
+   its own preview URL.
+
+Supabase needs no change for this: the hosted project is already reachable from
+Vercel, though you may want to add the deployment domain under Supabase Auth →
+URL Configuration so email links resolve to the deployed site rather than
+localhost.
+
 ## Open Decisions
 
 - **No automated test suite exists.** Given how much correctness depends

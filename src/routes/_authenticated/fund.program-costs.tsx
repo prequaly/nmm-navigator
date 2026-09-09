@@ -5,6 +5,7 @@ import { Calculator } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
 import { useCurrentPlan } from "@/hooks/use-current-plan";
+import { TaxPrefillBanner } from "@/components/finance/TaxPrefillBanner";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/fund/program-costs")({
@@ -68,6 +69,8 @@ function ProgramCosts() {
       subtitle="What each program actually costs once shared overhead is loaded in — computed from your real budget's admin/fundraising expense lines, split proportionally by each program's direct budget."
     >
       {!ready && <p className="text-sm text-slate-500 py-12 text-center">Loading…</p>}
+
+      {ready && <TaxPrefillBanner orgId={orgId} planId={planId} />}
 
       {ready && programs.length === 0 && (
         <EmptyState

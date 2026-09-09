@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, SectionCard, KpiTile, PrimaryButton, GhostButton } from "@/components/app-shell/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentOrg } from "@/hooks/use-current-org";
+import { useCurrentPlan } from "@/hooks/use-current-plan";
+import { TaxPrefillBanner } from "@/components/finance/TaxPrefillBanner";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,6 +53,7 @@ const yearTotal = (rows: { yearly_amounts: YearlyAmounts | null }[], year: YearK
 
 function BudgetPage() {
   const { orgId, loading: orgLoading } = useCurrentOrg();
+  const { planId } = useCurrentPlan(orgId);
   const [revenue, setRevenue] = useState<RevenueRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -224,6 +227,8 @@ function BudgetPage() {
         </>
       }
     >
+      <TaxPrefillBanner orgId={orgId} planId={planId} onApplied={load} />
+
       <div className="flex flex-wrap items-center gap-6 mb-4 text-sm">
         <div className="flex items-center gap-3">
           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Base year</label>

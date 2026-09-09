@@ -1,6 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo, useRef } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, useMemo, useEffect } from "react";
 import {
   AppShell,
   SectionCard,
@@ -8,9 +7,7 @@ import {
   GhostButton,
 } from "@/components/app-shell/AppShell";
 import {
-  Upload,
-  Pencil,
-  Loader2,
+  FileText,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +17,8 @@ import {
   Info,
 } from "lucide-react";
 import { PieChart as RPieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { extract990, type Extracted990 } from "@/lib/finance/extract-990.functions";
+import { useCurrentOrg } from "@/hooks/use-current-org";
+import { loadLatestTaxFiling, type RevenueLines, type TaxFiling } from "@/lib/finance/tax-filings";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/assess/revenue-hhi")({
@@ -150,8 +148,8 @@ const ALL_SUB_IDS: string[] = CATEGORIES.flatMap((c) => c.subs.map((s) => subId(
 const blankRevenue = (): Revenue =>
   Object.fromEntries(ALL_SUB_IDS.map((id) => [id, 0])) as Revenue;
 
-function from990(x: Extracted990): Revenue {
-  const r = x.revenue_lines;
+/** Map filed 990 revenue lines onto this worksheet's category/sub-source grid. */
+function fromRevenueLines(r: RevenueLines): Revenue {
   const rev = blankRevenue();
   // Part VIII has no breakdown of contribution sub-sources — drop into "unallocated".
   const nonGov = Math.max(0, r.contributions_gifts_grants - r.government_grants);
@@ -231,18 +229,37 @@ function hhiBand(hhi: number) {
 type Phase = "intake" | "review" | "questions" | "results";
 
 function HhiAssessment() {
+  const { orgId } = useCurrentOrg();
   const [phase, setPhase] = useState<Phase>("intake");
-  const [, setMode] = useState<"upload" | "manual" | null>(null);
-  const [extracted, setExtracted] = useState<Extracted990 | null>(null);
+  // Revenue figures now arrive from the tax filing captured once in
+  // Legal & Registration, rather than being re-entered here.
+  const [filing, setFiling] = useState<TaxFiling | null>(null);
+  const [filingLoading, setFilingLoading] = useState(true);
   const [revenue, setRevenue] = useState<Revenue>(blankRevenue);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [step, setStep] = useState(0);
-  const [uploading, setUploading] = useState(false);
   const [expanded, setExpanded] = useState<Record<CategoryKey, boolean>>(() =>
     Object.fromEntries(CATEGORIES.map((c) => [c.key, true])) as Record<CategoryKey, boolean>,
   );
-  const fileRef = useRef<HTMLInputElement>(null);
-  const extract = useServerFn(extract990);
+
+  useEffect(() => {
+    if (!orgId) return;
+    let cancelled = false;
+    setFilingLoading(true);
+    loadLatestTaxFiling(orgId)
+      .then((f) => {
+        if (!cancelled) setFiling(f);
+      })
+      .catch(() => {
+        /* the page still works without a filing */
+      })
+      .finally(() => {
+        if (!cancelled) setFilingLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
 
   const calc = useMemo(() => computeHhi(revenue), [revenue]);
   const band = hhiBand(calc.subHhi);
@@ -255,36 +272,10 @@ function HhiAssessment() {
       0,
     );
 
-  // ---------- File handler ----------
-  const handleFile = async (file: File) => {
-    if (file.type !== "application/pdf") {
-      toast.error("Please upload a PDF of the Form 990.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File too large. Max 10 MB.");
-      return;
-    }
-    setUploading(true);
-    try {
-      const buf = await file.arrayBuffer();
-      let binary = "";
-      const bytes = new Uint8Array(buf);
-      const chunk = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      }
-      const b64 = btoa(binary);
-      const result = await extract({ data: { filename: file.name, fileDataBase64: b64 } });
-      setExtracted(result);
-      setRevenue(from990(result));
-      setPhase("review");
-      toast.success("Form 990 parsed. Split the unallocated lines for a sharper HHI.");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Could not extract numbers from that PDF.");
-    } finally {
-      setUploading(false);
-    }
+  const prefillFromFiling = (f: TaxFiling) => {
+    setRevenue(fromRevenueLines(f.revenue_lines));
+    setPhase("review");
+    toast.success(`Loaded your ${f.tax_year} ${f.form_type}. Split the unallocated lines for a sharper HHI.`);
   };
 
   // ---------- PHASE 1: Intake ----------
@@ -298,72 +289,85 @@ function HhiAssessment() {
         <SectionCard padding="p-10">
           <span className="text-[10px] font-bold uppercase tracking-widest text-brand-primary">Step 1 of 3 · Bring your numbers</span>
           <h2 className="text-3xl font-serif italic mt-3 leading-tight max-w-2xl">
-            HHI is only as honest as the numbers behind it. How would you like to enter your revenue mix?
+            HHI is only as honest as the numbers behind it.
           </h2>
           <p className="text-sm text-slate-500 mt-3 max-w-xl">
-            Upload your most recent IRS Form 990 and our AI will read Part VIII for you — or enter the categories by hand. Either way you'll be able to split each category into sub-sources (individual vs. corporate, federal vs. state, etc.).
+            Your revenue figures live in Legal &amp; Registration on the Organization Profile —
+            entered once from a tax form or by hand, then reused by every module that needs them.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-10">
-            <button
-              onClick={() => {
-                setMode("upload");
-                fileRef.current?.click();
-              }}
-              disabled={uploading}
-              className="text-left rounded-2xl border border-slate-200 hover:border-brand-primary/50 hover:bg-slate-50 transition-all p-7 disabled:opacity-60 disabled:cursor-not-allowed group"
-            >
-              <div className="flex items-center justify-between mb-5">
+          {filingLoading ? (
+            <p className="text-sm text-slate-400 mt-8">Looking for your filed figures…</p>
+          ) : filing ? (
+            <div className="mt-8 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-7">
+              <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
                 <div className="size-11 rounded-xl bg-brand-deep text-white flex items-center justify-center">
-                  {uploading ? <Loader2 className="size-5 animate-spin" /> : <Upload className="size-5" />}
+                  <FileText className="size-5" />
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent bg-brand-accent/10 px-2 py-1 rounded-full inline-flex items-center gap-1">
-                  <Sparkles className="size-3" /> Recommended
+                  <Sparkles className="size-3" /> On file
                 </span>
               </div>
-              <h3 className="font-serif italic text-xl">Upload your Form 990 (PDF)</h3>
-              <p className="text-sm text-slate-500 mt-2">
-                We'll extract Part VIII revenue totals and prefill the worksheet. You then split contributions, government, and program revenue into sub-sources.
+              <h3 className="font-serif italic text-xl">
+                Your {filing.tax_year} {filing.form_type}
+              </h3>
+              <p className="text-sm text-slate-600 mt-2">
+                {new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 0,
+                }).format(filing.total_revenue)}{" "}
+                in total revenue. We'll prefill the worksheet — you then split contributions,
+                government, and program revenue into sub-sources.
               </p>
-              <p className="text-[11px] text-slate-400 mt-4">PDF · up to 10 MB · processed securely</p>
-            </button>
-
-            <button
-              onClick={() => {
-                setMode("manual");
-                setRevenue(blankRevenue());
-                setExtracted(null);
-                setPhase("review");
-              }}
-              className="text-left rounded-2xl border border-slate-200 hover:border-brand-primary/50 hover:bg-slate-50 transition-all p-7"
-            >
-              <div className="size-11 rounded-xl bg-white border border-slate-200 text-brand-deep flex items-center justify-center mb-5">
-                <Pencil className="size-5" />
+              <div className="flex items-center gap-3 mt-6 flex-wrap">
+                <PrimaryButton onClick={() => prefillFromFiling(filing)}>
+                  Use these figures <ChevronRight className="size-3.5 inline -mt-0.5" />
+                </PrimaryButton>
+                <Link
+                  to="/profile"
+                  className="text-sm font-medium text-brand-primary hover:underline"
+                >
+                  Update the filing
+                </Link>
               </div>
-              <h3 className="font-serif italic text-xl">Enter the numbers manually</h3>
-              <p className="text-sm text-slate-500 mt-2">
-                Use your audited financials or P&amp;L. 8 categories, ~20 sub-lines, takes about 5 minutes.
+            </div>
+          ) : (
+            <div className="mt-8 rounded-2xl border border-slate-200 p-7">
+              <div className="size-11 rounded-xl bg-white border border-slate-200 text-brand-deep flex items-center justify-center mb-5">
+                <FileText className="size-5" />
+              </div>
+              <h3 className="font-serif italic text-xl">No revenue figures on file yet</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-xl">
+                Add your most recent Form 990 (or type the categories in by hand) under Legal &amp;
+                Registration. It takes about five minutes and prefills Funding Gap, Scenario
+                Modeling, and Program Cost Allocation at the same time.
               </p>
-              <p className="text-[11px] text-slate-400 mt-4">No file required</p>
-            </button>
-          </div>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFile(f);
-              e.target.value = "";
-            }}
-          />
+              <div className="flex items-center gap-3 mt-6 flex-wrap">
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-deep text-white rounded-lg text-sm font-medium hover:bg-brand-deep/90"
+                >
+                  Go to Legal &amp; Registration <ChevronRight className="size-3.5" />
+                </Link>
+                <button
+                  onClick={() => {
+                    setRevenue(blankRevenue());
+                    setPhase("review");
+                  }}
+                  className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                >
+                  Start from a blank worksheet instead
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-4 border border-slate-100">
             <AlertTriangle className="size-3.5 text-slate-400 mt-0.5 shrink-0" />
             <span>
-              AI extraction is a best-effort read of Part VIII. Sub-source breakdowns (individual vs. corporate, federal vs. state) aren't on the 990 — you'll split those yourself in the next step.
+              Sub-source breakdowns (individual vs. corporate, federal vs. state) aren't reported on
+              the 990 — you'll split those yourself in the next step.
             </span>
           </div>
         </SectionCard>
@@ -383,15 +387,21 @@ function HhiAssessment() {
           </GhostButton>
         }
       >
-        {extracted && (
+        {filing && (
           <div className="bg-brand-deep text-white rounded-xl p-5 mb-6 flex items-center gap-4">
             <div className="size-9 rounded-lg bg-brand-accent/20 text-brand-accent flex items-center justify-center">
               <Sparkles className="size-4" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">AI parsed from your Form 990</p>
+              <p className="text-sm font-medium">
+                Prefilled from your {filing.tax_year} {filing.form_type}
+              </p>
               <p className="text-xs text-slate-400 mt-0.5">
-                {[extracted.organization_name, extracted.ein && `EIN ${extracted.ein}`, extracted.fiscal_year_end && `FY end ${extracted.fiscal_year_end}`]
+                {[
+                  filing.filed_organization_name,
+                  filing.filed_ein && `EIN ${filing.filed_ein}`,
+                  filing.fiscal_year_end && `FY end ${filing.fiscal_year_end}`,
+                ]
                   .filter(Boolean)
                   .join(" · ") || "Edit any numbers that look off below."}
               </p>
@@ -555,10 +565,10 @@ function HhiAssessment() {
           </div>
         </div>
 
-        {extracted?.top_contributors && extracted.top_contributors.length > 0 && (
+        {filing && filing.top_contributors.length > 0 && (
           <SectionCard title="Top contributors (from Schedule B)" subtitle="Helpful context — not used directly in HHI.">
             <ul className="divide-y divide-slate-100">
-              {extracted.top_contributors.map((c, i) => (
+              {filing.top_contributors.map((c, i) => (
                 <li key={i} className="py-2 flex justify-between text-sm">
                   <span className="text-slate-700">{c.name}</span>
                   <span className="tabular-nums text-slate-500">${c.amount.toLocaleString()}</span>
@@ -836,8 +846,6 @@ function HhiAssessment() {
         <button
           onClick={() => {
             setPhase("intake");
-            setMode(null);
-            setExtracted(null);
             setRevenue(blankRevenue());
             setAnswers({});
             setStep(0);

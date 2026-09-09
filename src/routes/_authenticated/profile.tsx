@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ORG } from "@/lib/mock/riverside";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
+import { TaxFormIntake } from "@/components/finance/TaxFormIntake";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Organization Profile — NMM Navigator" }] }),
@@ -257,6 +258,25 @@ function ProfilePage() {
             {field("EIN", "ein")}
             {field("Tax status", "tax_status")}
             {field("Fiscal sponsor (if applicable)", "fiscal_sponsor_name")}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <h3 className="text-[15px] font-semibold text-teal-deep">Tax filings & revenue history</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-5 max-w-2xl">
+              Your prior-year numbers feed Revenue Diversity, Funding Gap, Scenario Modeling, and
+              Program Cost Allocation — enter them once here instead of retyping them per module.
+            </p>
+            <TaxFormIntake
+              orgId={orgId}
+              yearFounded={form.year_founded === "" ? null : Number(form.year_founded)}
+              onSaved={(filing) => {
+                // The form usually knows the EIN before the profile does.
+                if (filing.filed_ein && !form.ein) {
+                  setForm((prev) => ({ ...prev, ein: filing.filed_ein ?? "" }));
+                  toast.message("EIN picked up from the filing — save the profile to keep it.");
+                }
+              }}
+            />
           </div>
         </SectionCard>
 
